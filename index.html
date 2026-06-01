@@ -3040,7 +3040,8 @@ document.querySelectorAll("#confirmSeg .seg-b").forEach(b=> b.onclick=()=>{
 /* ---- in-game View button (3D <-> bird's-eye) + confirm-move button ---- */
 function updateViewBtn(){
   const el=document.getElementById("viewBtn"); if(!el) return;
-  const t=(R3.tiltTarget!==undefined?R3.tiltTarget:(R3.camTilt||0));
+  let t=0;
+  try{ t=(R3.tiltTarget!==undefined?R3.tiltTarget:(R3.camTilt||0)); }catch(e){ t=0; }  // R3 may be in TDZ during first applyLang()
   const lab=el.querySelector(".vb-t"); if(lab) lab.textContent=T(t<0.5?"Bird's-eye":"3D View");
 }
 document.getElementById("viewBtn").onclick=()=>{ if(R3.ready){ R3.toggleView(); buzz(6); } };
