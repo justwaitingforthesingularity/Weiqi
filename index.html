@@ -350,7 +350,15 @@
   .ig-cap .dot.white{ background:radial-gradient(circle at 33% 30%, #fffaf0, #d4c8b2 78%); }
   .ig-cap .count{ font-size:15px; font-weight:600; }
   .ig-turn{ font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); }
+  .ig-view{ position:fixed; top:18px; right:18px; padding:9px 14px; border-radius:14px; cursor:pointer;
+    font-family:inherit; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--ink); }
   .ig-controls{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); display:flex; gap:10px; }
+  .ig-confirm{ position:fixed; bottom:74px; left:50%; transform:translateX(-50%) translateY(8px);
+    display:none; align-items:center; gap:8px; padding:11px 22px; border-radius:16px; cursor:pointer;
+    font-family:inherit; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink);
+    opacity:0; transition:opacity .18s ease, transform .18s ease; }
+  body.confirm-pending .ig-confirm{ display:flex; opacity:1; transform:translateX(-50%) translateY(0); }
+  .ig-confirm .cf-ic{ color:var(--gold); font-size:16px; font-weight:700; }
   .tabs{ transition:transform .5s cubic-bezier(.7,0,.3,1), opacity .4s ease; }
   body.playing .tabs{ transform:translate(-50%,160%); opacity:0; pointer-events:none; }
 </style>
@@ -397,6 +405,8 @@
       <!-- slim in-game UI: only this + the board remain after Play -->
       <div class="ingame" id="ingameUI">
         <button class="ig-menu glass" id="igMenu">‹ Menu</button>
+        <button class="ig-view glass" id="viewBtn">⌖ <span class="vb-t">Bird's-eye</span></button>
+        <button class="ig-confirm glass" id="confirmMoveBtn"><span class="cf-ic">✓</span><span class="cf-t">Place here</span></button>
         <div class="ig-hud glass">
           <span class="ig-cap active" id="capBlack"><span class="dot black"></span><span class="count" id="blackCaps">0</span></span>
           <span class="ig-turn" id="igTurn">Black to play</span>
@@ -460,6 +470,14 @@
             <button class="seg-b" data-snd="off">Off</button>
           </div>
         </div>
+        <div class="set-row">
+          <span class="set-l i18n">Confirm each move</span>
+          <div class="seg lang-seg" id="confirmSeg">
+            <button class="seg-b" data-cf="on">On</button>
+            <button class="seg-b" data-cf="off">Off</button>
+          </div>
+        </div>
+        <div class="set-note i18n">Tap a point to preview your stone, then tap again (or ✓) to place it. Easier on touch screens.</div>
         <div class="set-note i18n">Changes the display language across the whole app.</div>
       </div>
     </section>
@@ -689,6 +707,7 @@ function endGame(){
    (guzheng-like) for success, fitting the ancient-Chinese mood.
    ------------------------------------------------------------ */
 let SOUND_ON=store.get("sound",true);
+let CONFIRM_MOVE=store.get("confirmMove",true);   // tap-to-preview then confirm (mobile-friendly)
 const sfx=(function(){
   let ctx=null, master=null;
   function AC(){
@@ -1208,14 +1227,15 @@ function updateHUD(){
   const ig=document.getElementById("igTurn");
   if(ig) ig.textContent = gameOver ? T("Game over") : (turn===1 ? T("Black to play") : T("White to play"));
 }
+function clearPreview(){ if(window.R3 && R3.ready && R3.clearPending) R3.clearPending(); }
 document.getElementById("passBtn").onclick=()=>{ if(gameOver)return;
-  if(MODE==="cpu" && turn!==HUMAN) return;
+  if(MODE==="cpu" && turn!==HUMAN) return; clearPreview();
   pushHistory(); turn=turn===1?2:1; lastMove=null; passes++; buzz(8); updateHUD(); draw();
   if(passes>=2){ endGame(); return; } maybeCpu(); };
-function humanUndo(){ if(!history.length||gameOver) return; undo();
+function humanUndo(){ if(!history.length||gameOver) return; clearPreview(); undo();
   if(MODE==="cpu" && turn===CPU && history.length) undo(); }   // step back past the computer's reply too
 document.getElementById("undoBtn").onclick=humanUndo;
-function startGame(){ newGame(); if(MODE==="cpu" && turn===CPU) maybeCpu(); }   // CPU opens if you chose White
+function startGame(){ clearPreview(); newGame(); if(MODE==="cpu" && turn===CPU) maybeCpu(); }   // CPU opens if you chose White
 document.getElementById("newBtn").onclick=()=>{ buzz([6,40,6]); startGame(); };
 document.getElementById("resultNew").onclick=()=>{ buzz([6,40,6]); startGame(); };
 
@@ -2275,6 +2295,11 @@ const TR={
   "On":{zh:"开",ja:"オン",ko:"켜기"},
   "Off":{zh:"关",ja:"オフ",ko:"끄기"},
   "Changes the display language across the whole app.":{zh:"更改整个应用的显示语言。",ja:"アプリ全体の表示言語を変更します。",ko:"앱 전체의 표시 언어를 변경합니다."},
+  "Confirm each move":{zh:"落子需确认",ja:"着手を確認",ko:"착수 확인"},
+  "Tap a point to preview your stone, then tap again (or ✓) to place it. Easier on touch screens.":{zh:"先点一个点预览棋子，再点一次（或✓）才落子。在触屏上更易操作。",ja:"点をタップして石をプレビューし、もう一度タップ（または✓）で着手します。タッチ画面で操作しやすくなります。",ko:"한 점을 눌러 돌을 미리 보고, 다시 누르면(또는 ✓) 착수합니다. 터치 화면에서 더 편합니다."},
+  "Place here":{zh:"在此落子",ja:"ここに置く",ko:"여기 두기"},
+  "Bird's-eye":{zh:"俯视",ja:"真上から",ko:"위에서"},
+  "3D View":{zh:"立体视角",ja:"立体視点",ko:"입체 시점"},
   /* ---- setup card ---- */
   "Opponent":{zh:"对手",ja:"対戦相手",ko:"상대"},
   "Board":{zh:"棋盘",ja:"碁盤",ko:"바둑판"},
@@ -2966,9 +2991,9 @@ function Tf(key,map){ let s=T(key); for(const k in map) s=s.split("{"+k+"}").joi
 function staticNodes(){
   return document.querySelectorAll(
     ".tabs .tab span, .brand .en, .scr-title, "+
-    "#soonCard .soon-h, #soonCard .sr-t, #setCard .i18n, #soundSeg .seg-b, "+
+    "#soonCard .soon-h, #soonCard .sr-t, #setCard .i18n, #soundSeg .seg-b, #confirmSeg .seg-b, "+
     ".setup .seg-label, #modeSeg .seg, #diffSeg .seg, #colorSeg .seg, #playBtn, "+
-    "#ingameUI .ig-controls .btn, #igMenu, "+
+    "#ingameUI .ig-controls .btn, #igMenu, #confirmMoveBtn .cf-t, "+
     "#resultOverlay h2, #resultNew, #mmCpu, #mmCancel");
 }
 function translateStatic(){
@@ -2991,6 +3016,8 @@ function applyLang(){
     try{ renderStep(); }catch(e){}
   document.querySelectorAll("#langSeg .seg-b").forEach(b=>b.classList.toggle("on", b.dataset.lang===LANG));
   document.querySelectorAll("#soundSeg .seg-b").forEach(b=>b.classList.toggle("on", b.dataset.snd===(SOUND_ON?"on":"off")));
+  if(typeof syncConfirmSeg==="function") syncConfirmSeg();
+  if(typeof updateViewBtn==="function") updateViewBtn();
 }
 document.querySelectorAll("#langSeg .seg-b").forEach(b=> b.onclick=()=>{
   if(LANG===b.dataset.lang) return; LANG=b.dataset.lang; store.set("lang",LANG); applyLang(); buzz(8);
@@ -3000,6 +3027,24 @@ document.querySelectorAll("#soundSeg .seg-b").forEach(b=> b.onclick=()=>{
   sfx.setEnabled(want); buzz(8,false);
   document.querySelectorAll("#soundSeg .seg-b").forEach(x=>x.classList.toggle("on", x.dataset.snd===(SOUND_ON?"on":"off")));
 });
+/* ---- "confirm each move" setting ---- */
+function syncConfirmSeg(){
+  document.querySelectorAll("#confirmSeg .seg-b").forEach(x=>x.classList.toggle("on", x.dataset.cf===(CONFIRM_MOVE?"on":"off")));
+}
+document.querySelectorAll("#confirmSeg .seg-b").forEach(b=> b.onclick=()=>{
+  const want=b.dataset.cf==="on"; if(want===CONFIRM_MOVE) return;
+  CONFIRM_MOVE=want; store.set("confirmMove",want); buzz(8);
+  if(!want && R3.ready) R3.clearPending();          // turning it off drops any pending preview
+  syncConfirmSeg();
+});
+/* ---- in-game View button (3D <-> bird's-eye) + confirm-move button ---- */
+function updateViewBtn(){
+  const el=document.getElementById("viewBtn"); if(!el) return;
+  const t=(R3.tiltTarget!==undefined?R3.tiltTarget:(R3.camTilt||0));
+  const lab=el.querySelector(".vb-t"); if(lab) lab.textContent=T(t<0.5?"Bird's-eye":"3D View");
+}
+document.getElementById("viewBtn").onclick=()=>{ if(R3.ready){ R3.toggleView(); buzz(6); } };
+document.getElementById("confirmMoveBtn").onclick=()=>{ if(R3.ready) R3.commitPending(); };
 applyLang();
 
 /* ---- overlay helpers ---- */
@@ -3045,7 +3090,7 @@ document.querySelectorAll("#diffSeg .seg").forEach(seg=> seg.onclick=()=>{ buzz(
   document.querySelectorAll("#diffSeg .seg").forEach(s=>s.classList.toggle("active",s===seg)); });
 document.getElementById("playBtn").onclick=()=>{ buzz([6,40,6]); applyColor();
   document.body.classList.add("playing"); startGame(); };
-document.getElementById("igMenu").onclick=()=>{ buzz(6); document.body.classList.remove("playing"); };
+document.getElementById("igMenu").onclick=()=>{ buzz(6); clearPreview(); document.body.classList.remove("playing"); };
 document.getElementById("mmCancel").onclick=()=>{ buzz(6); hideOverlay("matchOverlay"); syncModeSeg(); };
 document.getElementById("matchOverlay").addEventListener("click",e=>{
   if(e.target.id==="matchOverlay"){ hideOverlay("matchOverlay"); syncModeSeg(); } });
@@ -3378,12 +3423,12 @@ R3.init=function(){
 
   this.raycaster=new THREE.Raycaster();
   cv.addEventListener("pointermove",e=>this.onMove(e));
-  cv.addEventListener("pointerleave",()=>{ this.ghost.visible=false; });
+  cv.addEventListener("pointerleave",()=>{ if(!this.pending) this.ghost.visible=false; });
   cv.addEventListener("pointerdown",e=>this.onDown(e));
-  // scroll to tilt the camera between cinematic 3D and top-down bird's-eye
+  // scroll to tilt the camera between cinematic 3D and top-down bird's-eye (desktop)
   cv.addEventListener("wheel",e=>{ e.preventDefault();
-    this.camTilt=Math.max(0,Math.min(1,(this.camTilt||0)+(e.deltaY>0?0.08:-0.08)));
-    this.frameCamera(); }, {passive:false});
+    this.setTilt(Math.max(0,Math.min(1,(this.tiltTarget!==undefined?this.tiltTarget:(this.camTilt||0))+(e.deltaY>0?0.16:-0.16))),true);
+  }, {passive:false});
 
   document.getElementById("board").style.display="none";   // hide the 2D board; 3D takes over
   this.ready=true;
@@ -3392,12 +3437,23 @@ R3.init=function(){
   const loop=(now)=>{ requestAnimationFrame(loop);
     const dt=Math.min((now-prev)/1000,0.05); prev=now;
     this.updateLeaves(dt,now); this.swayFoliage(now);
+    // ease the camera toward its target tilt (driven by scroll wheel OR the View button)
+    if(this.tiltTarget!==undefined && Math.abs(this.tiltTarget-(this.camTilt||0))>0.0008){
+      this.camTilt=(this.camTilt||0)+(this.tiltTarget-(this.camTilt||0))*Math.min(1,dt*7);
+      this.frameCamera();
+    }
     if(this.marker && this.marker.visible){ const p=0.7+0.3*Math.sin(now*0.005);
       this.markMat.opacity=0.55+0.4*p; const s=1+0.06*Math.sin(now*0.005); this.marker.scale.set(s,s,1); }
     renderer.render(scene,cam); };
   requestAnimationFrame(loop);
   return true;
 };
+// set the target tilt (0 = cinematic 3D, 1 = bird's-eye). snap=true jumps instantly (wheel feels snappier).
+R3.setTilt=function(t,snap){ this.tiltTarget=t; if(snap){ this.camTilt=t; if(this.frameCamera) this.frameCamera(); }
+  if(typeof updateViewBtn==="function") updateViewBtn(); };
+// flip between the two views (used by the on-screen View button — works on touch/Safari)
+R3.toggleView=function(){ const cur=(this.tiltTarget!==undefined?this.tiltTarget:(this.camTilt||0));
+  this.setTilt(cur<0.5?1:0,false); };
 
 R3.build=function(n){               // (re)build the board + whole scene for a given board size
   const TEX=this.TEX, pad=TEX*this.padFrac, cell=(TEX-2*pad)/(n-1);
@@ -3523,15 +3579,36 @@ R3.pick=function(e){              // pointer → board [i,j] or null
 };
 R3.onMove=function(e){
   if(!document.body.classList.contains("playing")){ this.ghost.visible=false; return; }   // only react in-game
+  if(this.pending) return;   // a stone is previewed and awaiting confirmation — keep it put
   const p=this.pick(e);
   if(p && !gameOver && board[p[1]][p[0]]===0 && !(MODE==="cpu"&&turn!==HUMAN)){
     const [wx,wz]=this.cellToWorld(p[0],p[1]); this.ghost.position.set(wx,this.rad*0.62-0.02,wz);
     this.ghost.material.color.set(turn===1?0x111111:0xefe6d4); this.ghost.visible=true;
   } else this.ghost.visible=false;
 };
+// preview a stone, then require a second tap (or the ✓ button) before it is played
+R3.previewAt=function(p){
+  this.pending=p;
+  const [wx,wz]=this.cellToWorld(p[0],p[1]);
+  this.ghost.position.set(wx,this.rad*0.62-0.02,wz);
+  this.ghost.material.color.set(turn===1?0x111111:0xefe6d4); this.ghost.visible=true;
+  document.body.classList.add("confirm-pending");
+};
+R3.clearPending=function(){
+  this.pending=null;
+  document.body.classList.remove("confirm-pending");
+  if(this.ghost) this.ghost.visible=false;
+};
+R3.commitPending=function(){
+  if(!this.pending) return; const p=this.pending; this.clearPending(); playAtCell(p[0],p[1]);
+};
 R3.onDown=function(e){
   if(!document.body.classList.contains("playing")) return;                                 // setup card is up — ignore board taps
-  const p=this.pick(e); if(p){ this.ghost.visible=false; playAtCell(p[0],p[1]); }
+  const p=this.pick(e); if(!p) return;
+  if(gameOver || board[p[1]][p[0]]!==0 || (MODE==="cpu"&&turn!==HUMAN)) return;             // occupied / not your turn
+  if(!CONFIRM_MOVE){ this.ghost.visible=false; playAtCell(p[0],p[1]); return; }              // direct placement
+  if(this.pending && this.pending[0]===p[0] && this.pending[1]===p[1]){ this.commitPending(); return; } // 2nd tap = confirm
+  this.previewAt(p); buzz(6,false);                                                          // 1st tap = preview
 };
 
 R3.resize=function(){ if(!this.ready) return;
