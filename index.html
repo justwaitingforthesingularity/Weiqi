@@ -359,6 +359,23 @@
     opacity:0; transition:opacity .18s ease, transform .18s ease; }
   body.confirm-pending .ig-confirm{ display:flex; opacity:1; transform:translateX(-50%) translateY(0); }
   .ig-confirm .cf-ic{ color:var(--gold); font-size:16px; font-weight:700; }
+  /* touch tilt slider — drag to glide between cinematic 3D and bird's-eye (lives under the View button) */
+  .ig-tilt{ position:fixed; top:64px; right:18px; width:34px; height:150px; border-radius:18px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; }
+  .ig-tilt .tl-ic{ font-size:11px; color:var(--gold); opacity:.6; line-height:1; }
+  .ig-tilt-track{ position:relative; width:5px; flex:1; border-radius:3px;
+    background:linear-gradient(180deg, rgba(212,175,90,.55), rgba(212,175,90,.12)); }
+  .ig-tilt-knob{ position:absolute; left:50%; top:100%; width:20px; height:20px; border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 35% 30%, #fff4d2, var(--gold) 72%);
+    box-shadow:0 2px 6px rgba(0,0,0,.55), 0 0 9px rgba(212,175,90,.55); transition:box-shadow .18s; }
+  .ig-tilt.drag .ig-tilt-knob{ box-shadow:0 2px 8px rgba(0,0,0,.6), 0 0 16px rgba(255,210,120,.9); }
+  /* portrait phones: the centred turn-pill collided with the corner Menu / View buttons — drop it to its own row */
+  @media (max-width:600px){
+    .ig-hud{ top:62px; padding:7px 14px; }
+    .ig-tilt{ top:108px; height:128px; }
+  }
   .tabs{ transition:transform .5s cubic-bezier(.7,0,.3,1), opacity .4s ease; }
   body.playing .tabs{ transform:translate(-50%,160%); opacity:0; pointer-events:none; }
 </style>
@@ -406,6 +423,11 @@
       <div class="ingame" id="ingameUI">
         <button class="ig-menu glass" id="igMenu">‹ Menu</button>
         <button class="ig-view glass" id="viewBtn">⌖ <span class="vb-t">Bird's-eye</span></button>
+        <div class="ig-tilt glass" id="tiltSlider" aria-label="Tilt the view">
+          <span class="tl-ic">⊡</span>
+          <div class="ig-tilt-track" id="tiltTrack"><div class="ig-tilt-knob" id="tiltKnob"></div></div>
+          <span class="tl-ic">◳</span>
+        </div>
         <button class="ig-confirm glass" id="confirmMoveBtn"><span class="cf-ic">✓</span><span class="cf-t">Place here</span></button>
         <div class="ig-hud glass">
           <span class="ig-cap active" id="capBlack"><span class="dot black"></span><span class="count" id="blackCaps">0</span></span>
@@ -3046,6 +3068,30 @@ function updateViewBtn(){
 }
 document.getElementById("viewBtn").onclick=()=>{ if(R3.ready){ R3.toggleView(); buzz(6); } };
 document.getElementById("confirmMoveBtn").onclick=()=>{ if(R3.ready) R3.commitPending(); };
+/* ---- in-game tilt slider (touch-friendly camera control: top = bird's-eye, bottom = 3D) ---- */
+(function(){
+  const sl=document.getElementById("tiltSlider"), track=document.getElementById("tiltTrack"), knob=document.getElementById("tiltKnob");
+  if(!sl||!track||!knob) return;
+  function curTilt(){ try{ return (R3.tiltTarget!==undefined?R3.tiltTarget:(R3.camTilt||0)); }catch(e){ return 0; } }
+  // expose globally so R3.setTilt + the render loop can keep the knob in sync
+  window.setTiltKnob=function(frac){ frac=Math.max(0,Math.min(1,frac));
+    knob.style.top=((1-frac)*track.clientHeight)+"px"; };           // top of track = bird's-eye (1)
+  let dragging=false, lastBuzz=0;
+  function fracFromEvent(e){ const r=track.getBoundingClientRect();
+    const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return Math.max(0,Math.min(1, 1-(cy/r.height))); }
+  function apply(e){ const f=fracFromEvent(e); window.setTiltKnob(f);
+    try{ if(R3.ready) R3.setTilt(f,true); }catch(_){}
+    const now=performance.now(); if(now-lastBuzz>55){ lastBuzz=now; buzz(3,false); } }
+  function start(e){ dragging=true; sl.classList.add("drag"); apply(e); e.preventDefault(); }
+  function move(e){ if(dragging){ apply(e); e.preventDefault(); } }
+  function end(){ if(dragging){ dragging=false; sl.classList.remove("drag"); } }
+  sl.addEventListener("pointerdown",start);
+  window.addEventListener("pointermove",move,{passive:false});
+  window.addEventListener("pointerup",end);
+  window.addEventListener("pointercancel",end);
+  window.setTiltKnob(curTilt());
+})();
 applyLang();
 
 /* ---- overlay helpers ---- */
@@ -3411,6 +3457,14 @@ R3.init=function(){
   // hover ghost
   this.ghostMat=new THREE.MeshPhysicalMaterial({color:0xffffff,transparent:true,opacity:0.42,roughness:0.3,clearcoat:0.5});
   this.ghost=new THREE.Mesh(this.geoStone,this.ghostMat); this.ghost.scale.set(1,0.62,1); this.ghost.visible=false; scene.add(this.ghost);
+  // soft "spirit" halo that breathes under a stone awaiting confirmation — makes the pre-chosen point obvious
+  (function(){ const gc=document.createElement("canvas"); gc.width=gc.height=128; const gg=gc.getContext("2d");
+    const grd=gg.createRadialGradient(64,64,3,64,64,64);
+    grd.addColorStop(0,"rgba(255,234,170,0.95)"); grd.addColorStop(0.45,"rgba(255,208,120,0.40)"); grd.addColorStop(1,"rgba(255,196,90,0)");
+    gg.fillStyle=grd; gg.fillRect(0,0,128,128); this.glowTex=new THREE.CanvasTexture(gc); }).call(this);
+  this.glowMat=new THREE.SpriteMaterial({map:this.glowTex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+  this.previewGlow=new THREE.Sprite(this.glowMat);
+  this.previewGlow.scale.set(this.rad*3.2,this.rad*3.2,1); this.previewGlow.visible=false; this.previewGlow.renderOrder=6; scene.add(this.previewGlow);
   // glowing ring marking the most recent move (both player + bot)
   this.markMat=new THREE.MeshBasicMaterial({color:0xffd27a,transparent:true,opacity:0.95,
     blending:THREE.AdditiveBlending,depthWrite:false});
@@ -3442,6 +3496,12 @@ R3.init=function(){
     if(this.tiltTarget!==undefined && Math.abs(this.tiltTarget-(this.camTilt||0))>0.0008){
       this.camTilt=(this.camTilt||0)+(this.tiltTarget-(this.camTilt||0))*Math.min(1,dt*7);
       this.frameCamera();
+      if(typeof setTiltKnob==="function") setTiltKnob(this.camTilt);   // knob glides with the camera
+    }
+    if(this.previewGlow && this.previewGlow.visible){                  // breathing spirit glow on the pending point
+      const q=0.5+0.5*Math.sin(now*0.004);
+      this.glowMat.opacity=0.34+0.46*q;
+      const s=this.rad*(2.9+0.55*q); this.previewGlow.scale.set(s,s,1);
     }
     if(this.marker && this.marker.visible){ const p=0.7+0.3*Math.sin(now*0.005);
       this.markMat.opacity=0.55+0.4*p; const s=1+0.06*Math.sin(now*0.005); this.marker.scale.set(s,s,1); }
@@ -3451,7 +3511,8 @@ R3.init=function(){
 };
 // set the target tilt (0 = cinematic 3D, 1 = bird's-eye). snap=true jumps instantly (wheel feels snappier).
 R3.setTilt=function(t,snap){ this.tiltTarget=t; if(snap){ this.camTilt=t; if(this.frameCamera) this.frameCamera(); }
-  if(typeof updateViewBtn==="function") updateViewBtn(); };
+  if(typeof updateViewBtn==="function") updateViewBtn();
+  if(typeof setTiltKnob==="function") setTiltKnob(t); };
 // flip between the two views (used by the on-screen View button — works on touch/Safari)
 R3.toggleView=function(){ const cur=(this.tiltTarget!==undefined?this.tiltTarget:(this.camTilt||0));
   this.setTilt(cur<0.5?1:0,false); };
@@ -3584,7 +3645,7 @@ R3.onMove=function(e){
   const p=this.pick(e);
   if(p && !gameOver && board[p[1]][p[0]]===0 && !(MODE==="cpu"&&turn!==HUMAN)){
     const [wx,wz]=this.cellToWorld(p[0],p[1]); this.ghost.position.set(wx,this.rad*0.62-0.02,wz);
-    this.ghost.material.color.set(turn===1?0x111111:0xefe6d4); this.ghost.visible=true;
+    this.ghost.material.color.set(turn===1?0x111111:0xefe6d4); this.ghostMat.opacity=0.42; this.ghost.visible=true;
   } else this.ghost.visible=false;
 };
 // preview a stone, then require a second tap (or the ✓ button) before it is played
@@ -3592,13 +3653,17 @@ R3.previewAt=function(p){
   this.pending=p;
   const [wx,wz]=this.cellToWorld(p[0],p[1]);
   this.ghost.position.set(wx,this.rad*0.62-0.02,wz);
-  this.ghost.material.color.set(turn===1?0x111111:0xefe6d4); this.ghost.visible=true;
+  this.ghost.material.color.set(turn===1?0x111111:0xefe6d4);
+  this.ghostMat.opacity=0.72;                       // pre-chosen stone reads clearer than a passing hover
+  this.ghost.visible=true;
+  if(this.previewGlow){ this.previewGlow.position.set(wx,this.rad*0.66,wz); this.previewGlow.visible=true; }
   document.body.classList.add("confirm-pending");
 };
 R3.clearPending=function(){
   this.pending=null;
   document.body.classList.remove("confirm-pending");
-  if(this.ghost) this.ghost.visible=false;
+  if(this.ghost){ this.ghost.visible=false; this.ghostMat.opacity=0.42; }
+  if(this.previewGlow) this.previewGlow.visible=false;
 };
 R3.commitPending=function(){
   if(!this.pending) return; const p=this.pending; this.clearPending(); playAtCell(p[0],p[1]);
