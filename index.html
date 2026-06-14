@@ -16,12 +16,27 @@
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; margin:0; }
   body{
-    font-family:"Georgia","Times New Roman",serif; color:var(--ink);
+    /* Latin serif first, then high-quality regional CJK serifs so stray 围棋/日本語/한국어 always render crisply */
+    font-family:"Georgia","Times New Roman","Songti SC","Hiragino Mincho ProN","AppleMyungjo","Noto Serif CJK SC","PingFang SC","Microsoft YaHei",serif;
+    color:var(--ink);
     background:radial-gradient(125% 88% at 50% -4%, #3d2e1d 0%, #241a10 33%, #120d08 66%, #080603 100%);
     background-attachment:fixed;                 /* viewport-anchored: no transition band scrolls past on long pages */
     min-height:100%; user-select:none; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;
   }
+  /* CJK reads better with a touch more line spacing and no per-glyph tracking on body copy */
+  html[lang^="zh"] .lp-q, html[lang="ja"] .lp-q, html[lang="ko"] .lp-q,
+  html[lang^="zh"] .sr-t, html[lang="ja"] .sr-t, html[lang="ko"] .sr-t{ line-height:1.7; letter-spacing:0; }
+  /* Language-aware typography — Han-unified glyphs differ by locale, so key off <html lang> (set in applyLang).
+     Uses native system fonts (no web-font download): looks great on iOS/Android/Win, works offline. */
+  html[lang^="zh"] body, html[lang^="zh"] button, html[lang^="zh"] input, html[lang^="zh"] textarea{
+    font-family:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","Noto Serif SC","PingFang SC","Microsoft YaHei",serif; }
+  html[lang="ja"] body, html[lang="ja"] button, html[lang="ja"] input, html[lang="ja"] textarea{
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif CJK JP","Noto Serif JP","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",serif; }
+  html[lang="ko"] body, html[lang="ko"] button, html[lang="ko"] input, html[lang="ko"] textarea{
+    font-family:"AppleMyungjo","Nanum Myeongjo","Noto Serif CJK KR","Noto Serif KR","Apple SD Gothic Neo","Malgun Gothic",serif; }
   #motes{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+  body.playing #motes{ display:none; }            /* the 3D scene has its own atmosphere; no 2D dust over the board */
   #vignette{ position:fixed; inset:0; z-index:6; pointer-events:none;
     background:radial-gradient(150% 135% at 50% 42%, transparent 60%, rgba(8,5,3,.20) 84%, rgba(8,5,3,.46) 100%);
     mix-blend-mode:multiply; }
@@ -342,17 +357,28 @@
   .ig-menu{ position:fixed; top:18px; left:18px; padding:9px 16px; border-radius:14px; cursor:pointer;
     font-family:inherit; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--ink); }
   .ig-hud{ position:fixed; top:18px; left:50%; transform:translateX(-50%);
-    display:flex; align-items:center; gap:14px; padding:8px 18px; border-radius:16px; }
-  .ig-cap{ display:flex; align-items:center; gap:7px; opacity:.5; transition:opacity .2s; }
+    display:flex; align-items:center; flex-wrap:nowrap; white-space:nowrap; gap:13px; padding:8px 18px; border-radius:16px; max-width:calc(100vw - 24px); }
+  .ig-cap{ display:flex; align-items:center; gap:7px; opacity:.5; transition:opacity .2s; flex:none; }
   .ig-cap.active{ opacity:1; }
-  .ig-cap .dot{ width:14px; height:14px; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,.5); }
+  .ig-cap .dot{ width:14px; height:14px; border-radius:50%; box-shadow:0 1px 3px rgba(0,0,0,.5); flex:none; }
   .ig-cap .dot.black{ background:radial-gradient(circle at 33% 30%, #707070, #060606 72%); }
   .ig-cap .dot.white{ background:radial-gradient(circle at 33% 30%, #fffaf0, #d4c8b2 78%); }
-  .ig-cap .count{ font-size:15px; font-weight:600; }
-  .ig-turn{ font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); }
+  .ig-cap .count{ font-size:15px; font-weight:600; min-width:1.1em; text-align:center; font-variant-numeric:tabular-nums; }
+  .ig-turn{ font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); white-space:nowrap; text-align:center; flex:none; }
   .ig-view{ position:fixed; top:18px; right:18px; padding:9px 14px; border-radius:14px; cursor:pointer;
     font-family:inherit; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--ink); }
   .ig-controls{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); display:flex; gap:10px; }
+  /* end-of-game scoring panel (mark dead stones) */
+  .ig-score{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); z-index:7;
+    display:none; flex-direction:column; align-items:center; gap:9px; padding:13px 20px; border-radius:18px; max-width:calc(100vw - 28px); }
+  body.scoring .ig-score{ display:flex; }
+  body.scoring .ig-controls{ display:none; }
+  body.scoring .ig-confirm{ display:none !important; }
+  .ig-score .sc-tip{ font-size:10.5px; letter-spacing:1.6px; text-transform:uppercase; color:var(--gold); text-align:center; }
+  .ig-score .sc-line{ font-size:16px; color:var(--ink); }
+  .ig-score .sc-line b{ color:var(--gold); font-weight:700; }
+  .ig-score .sc-actions{ display:flex; gap:10px; margin-top:2px; }
+  .ig-score .btn.go{ background:linear-gradient(180deg, rgba(212,175,90,.30), rgba(212,175,90,.14)); border-color:rgba(212,175,90,.5); }
   .ig-confirm{ position:fixed; bottom:74px; left:50%; transform:translateX(-50%) translateY(8px);
     display:none; align-items:center; gap:8px; padding:11px 22px; border-radius:16px; cursor:pointer;
     font-family:inherit; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink);
@@ -438,6 +464,14 @@
           <button class="btn glass" id="passBtn">Pass</button>
           <button class="btn glass" id="undoBtn">Undo</button>
           <button class="btn glass" id="newBtn">New</button>
+        </div>
+        <div class="ig-score glass" id="scorePanel">
+          <div class="sc-tip i18n">Tap any dead group to remove it</div>
+          <div class="sc-line" id="scoreLine">Black 0 · White 0</div>
+          <div class="sc-actions">
+            <button class="btn glass" id="scoreResume">Resume</button>
+            <button class="btn glass go" id="scoreConfirm">Confirm score</button>
+          </div>
         </div>
       </div>
 
@@ -669,6 +703,8 @@ function newGame(){
   board=blank(); turn=1; captures={1:0,2:0};
   history=[]; lastMove=null; hover=null;
   positions=new Set([serialize(board)]); passes=0; gameOver=false;
+  SCORING=false; DEAD=null; document.body.classList.remove("scoring");
+  if(window.R3 && R3.ready && R3.setDead) R3.setDead(null);
   hideOverlay("resultOverlay"); updateHUD(); draw();
 }
 function neighbours(x,y){ const o=[];
@@ -700,21 +736,88 @@ function undo(){ if(!history.length||gameOver) return; const s=history.pop();
   board=s.b; turn=s.turn; captures=s.caps; lastMove=s.last; positions=new Set(s.pos); passes=s.passes;
   buzz(8); updateHUD(); draw(); }
 
-function score(){
-  let bs=0,ws=0,bt=0,wt=0; const seen=blank();
-  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){ if(board[y][x]===1)bs++; else if(board[y][x]===2)ws++; }
+/* a simple eye: empty point whose every on-board orthogonal neighbour is colour c */
+function isSimpleEye(b,x,y,c){
+  for(const [nx,ny] of neighbours(x,y)) if(b[ny][nx]!==c) return false;
+  return true;
+}
+/* Heuristic dead-stone seed for a FINISHED position. A group is judged dead when it
+   has fewer than two simple eyes AND every non-eye liberty touches the opponent —
+   i.e. it is sealed inside enemy area with no room to make a second eye. Conservative:
+   it under-marks rather than killing live groups, and the player can toggle any group
+   by tapping it during the scoring phase. */
+function autoDead(b){
+  const dead=new Set(), seen=blank();
   for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){
-    if(board[y][x]!==0||seen[y][x])continue;
+    const c=b[y][x]; if(c===0||seen[y][x]) continue;
+    const G=getGroup(b,x,y,c); for(const [gx,gy] of G) seen[gy][gx]=1;
+    const opp=c===1?2:1, libKeys=new Set(), libs=[];
+    for(const [gx,gy] of G) for(const [nx,ny] of neighbours(gx,gy))
+      if(b[ny][nx]===0 && !libKeys.has(nx+","+ny)){ libKeys.add(nx+","+ny); libs.push([nx,ny]); }
+    let eyeLibs=0, sealed=true;
+    for(const [lx,ly] of libs){
+      if(isSimpleEye(b,lx,ly,c)) eyeLibs++;
+      else { let facesOpp=false; for(const [nx,ny] of neighbours(lx,ly)) if(b[ny][nx]===opp){ facesOpp=true; break; }
+             if(!facesOpp) sealed=false; }     // a non-eye liberty not facing the enemy = room to live
+    }
+    if(libs.length>0 && eyeLibs<2 && sealed) for(const [gx,gy] of G) dead.add(gx+","+gy);
+  }
+  return dead;
+}
+/* dead-stone–aware Chinese area score. `dead` = Set of "x,y" stone keys to lift off
+   the board before counting (their points + the space they sat on revert to territory). */
+function score(dead){
+  const b=board.map(r=>r.slice());
+  if(dead) for(const key of dead){ const p=key.split(","); b[+p[1]][+p[0]]=0; }
+  let bs=0,ws=0,bt=0,wt=0; const seen=blank();
+  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){ if(b[y][x]===1)bs++; else if(b[y][x]===2)ws++; }
+  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){
+    if(b[y][x]!==0||seen[y][x])continue;
     const st=[[x,y]]; seen[y][x]=1; const reg=[]; const bd=new Set();
     while(st.length){ const [cx,cy]=st.pop(); reg.push([cx,cy]);
       for(const [nx,ny] of neighbours(cx,cy)){
-        if(board[ny][nx]===0){ if(!seen[ny][nx]){ seen[ny][nx]=1; st.push([nx,ny]); } } else bd.add(board[ny][nx]); } }
+        if(b[ny][nx]===0){ if(!seen[ny][nx]){ seen[ny][nx]=1; st.push([nx,ny]); } } else bd.add(b[ny][nx]); } }
     if(bd.size===1){ bd.has(1)?bt+=reg.length:wt+=reg.length; } }
   return { black:bs+bt, white:ws+wt+KOMI };
 }
+/* ---- end of game → dead-stone marking phase → final result ---- */
+let SCORING=false, DEAD=null;
 function endGame(){
-  gameOver=true; const r=score(); const blackWin=r.black>r.white;
-  // update ELO (prototype: winner +16, loser -16) and games count
+  if(SCORING) return;
+  gameOver=true; if(typeof clearPreview==="function") clearPreview();
+  SCORING=true; DEAD=autoDead(board);          // auto-seed which groups look dead
+  if(window.R3 && R3.ready && R3.setDead) R3.setDead(DEAD);
+  document.body.classList.add("scoring");
+  draw(); updateHUD(); updateScoreUI(); buzz([10,40,10]);
+}
+function toggleDeadAt(x,y){                     // tap a stone to flip its whole group dead/alive
+  if(!SCORING || !board[y] || board[y][x]===0) return;
+  const c=board[y][x], keys=getGroup(board,x,y,c).map(p=>p[0]+","+p[1]);
+  const anyAlive=keys.some(k=>!DEAD.has(k));
+  for(const k of keys){ if(anyAlive) DEAD.add(k); else DEAD.delete(k); }
+  if(window.R3 && R3.ready && R3.setDead) R3.setDead(DEAD);
+  draw(); updateScoreUI(); buzz(6);
+}
+function updateScoreUI(){
+  const r=score(DEAD), el=document.getElementById("scoreLine");
+  if(el) el.innerHTML=T("Black")+" <b>"+r.black.toFixed(1)+"</b> &nbsp;·&nbsp; "+T("White")+" <b>"+r.white.toFixed(1)+"</b>";
+}
+function resumeFromScoring(){                    // "Resume" — undo an accidental double-pass
+  SCORING=false; DEAD=null; document.body.classList.remove("scoring");
+  if(window.R3 && R3.ready && R3.setDead) R3.setDead(null);
+  gameOver=false; undo();
+  if(MODE==="cpu" && turn===CPU) maybeCpu();
+}
+function confirmScore(){
+  const r=score(DEAD);
+  if(DEAD) for(const key of DEAD){ const p=key.split(","), x=+p[0], y=+p[1];   // lift dead stones, credit as captures
+    if(board[y][x]===1) captures[2]++; else if(board[y][x]===2) captures[1]++; board[y][x]=0; }
+  SCORING=false; DEAD=null; document.body.classList.remove("scoring");
+  if(window.R3 && R3.ready && R3.setDead) R3.setDead(null);
+  draw(); updateHUD(); finalizeResult(r);
+}
+function finalizeResult(r){
+  const blackWin=r.black>r.white;
   player.elo += blackWin? 16 : -16; if(player.elo<100)player.elo=100;
   player.games += 1; savePlayer(); refreshSizes(); refreshProfile(); refreshLeaderboard();
   document.getElementById("winnerText").textContent = blackWin?T("Black wins"):T("White wins");
@@ -974,6 +1077,57 @@ function _scoreFlat(bd){
   }
   return (b > w+KOMI) ? 1 : -1;
 }
+/* per-empty territory code on a flat board: 1=black-only region, 2=white-only, 3=contested(dame), 0=fully open */
+function _territoryCode(bd){
+  const out=new Int8Array(bd.length), vis=new Uint8Array(bd.length);
+  for(let i=0;i<bd.length;i++){
+    if(bd[i]!==0 || vis[i]) continue;
+    const stack=[i]; vis[i]=1; const reg=[]; let tb=false,tw=false;
+    while(stack.length){ const p=stack.pop(); reg.push(p);
+      const nb=_NB[p];
+      for(let k=0;k<nb.length;k++){ const q=nb[k], v=bd[q];
+        if(v===0){ if(!vis[q]){ vis[q]=1; stack.push(q); } }
+        else if(v===1) tb=true; else tw=true; } }
+    const code = tb&&tw?3 : tb?1 : tw?2 : 0;
+    for(let r=0;r<reg.length;r++) out[reg[r]]=code;
+  }
+  return out;
+}
+/* constructive candidate moves for `color`: legal, not an eye, not filling your own settled
+   territory, and not a hopeless drop into enemy territory (unless it captures right now).
+   This is what stops the bot from playing pointless moves in dead/own areas and lets it pass. */
+function _constructive(bd,color){
+  const terr=_territoryCode(bd), opp=color===1?2:1, out=[];
+  for(let i=0;i<bd.length;i++){
+    if(bd[i]!==0) continue;
+    if(_isEye(bd,i,color)) continue;            // never fill your own eyes
+    if(terr[i]===color) continue;               // don't fill your own territory
+    if(terr[i]===opp){                          // inside enemy area: only worth it if it captures now
+      let caps=false; const nb=_NB[i];
+      for(let k=0;k<nb.length;k++){ const q=nb[k]; if(bd[q]===opp && _libCount(bd,q,opp)===1){ caps=true; break; } }
+      if(!caps) continue;
+    }
+    if(_legal(bd,i,color)) out.push(i);
+  }
+  return out;
+}
+/* simple opening book so big boards don't flail in the first moves: take an empty,
+   isolated corner-star / side-star point. Returns a move index, or -1 if not in opening. */
+function _openingMove(flat){
+  if(SIZE<13) return -1;
+  let stones=0; for(let i=0;i<flat.length;i++) if(flat[i]) stones++;
+  if(stones>=6) return -1;
+  const lo=3, hi=SIZE-4, mid=(SIZE-1)>>1;
+  const pts=[[lo,lo],[hi,lo],[lo,hi],[hi,hi],[lo,mid],[hi,mid],[mid,lo],[mid,hi]];
+  for(let e=pts.length-1;e>0;e--){ const r=(Math.random()*(e+1))|0; const t=pts[e]; pts[e]=pts[r]; pts[r]=t; }
+  for(const [x,y] of pts){ const i=y*SIZE+x; if(flat[i]!==0) continue;
+    let near=false;
+    for(let dy=-2;dy<=2&&!near;dy++)for(let dx=-2;dx<=2;dx++){ const xx=x+dx,yy=y+dy;
+      if(xx>=0&&yy>=0&&xx<SIZE&&yy<SIZE&&flat[yy*SIZE+xx]){ near=true; break; } }
+    if(!near) return i;
+  }
+  return -1;
+}
 
 /* ---- UCT tree ---- */
 const UCT_C=1.18;
@@ -1040,8 +1194,33 @@ function cpuMove(){
     // convert board[y][x] -> flat
     const flat=new Int8Array(n*n);
     for(let y=0;y<n;y++)for(let x=0;x<n;x++) flat[y*n+x]=board[y][x];
+
+    // (1) opening book on big boards — stops MCTS flailing over a near-empty 19x19
+    const op=_openingMove(flat);
+    if(op>=0){ _thinking=false; const x=op%n, y=(op/n)|0; pushHistory();
+      if(place(x,y)){ buzz([4,16],false); updateHUD(); draw(); } else history.pop();
+      return; }
+
+    // (2) choose root candidates. Only near the END (opponent has passed) do we apply the
+    //     selective "constructive" filter — it is only valid once territories are sealed, and
+    //     applying it in the opening wrongly treats the whole open board as someone's territory.
+    let cand;
+    if(passes>=1){
+      const r=score(autoDead(board));
+      const cpuLead = CPU===1 ? r.black-r.white : r.white-r.black;
+      if(cpuLead>0){ _thinking=false; doPass(); return; }         // ahead & opponent passed → end it
+      cand=_constructive(flat, CPU);                               // else only worthwhile finishing moves
+    } else {
+      cand=_legalList(flat, CPU, -1);                              // normal play: all legal non-eye moves
+    }
+    if(cand.length===0){ _thinking=false; doPass(); return; }      // nothing left → pass
+
     const root=newNode(undefined, 0, CPU, -1, flat);
-    // difficulty scales how hard the bot searches
+    // restrict the ROOT to constructive candidates (+ pass); deeper nodes still read fully
+    const rootMoves=cand.slice(); rootMoves.push(-1);
+    for(let e=rootMoves.length-1;e>0;e--){ const r=(Math.random()*(e+1))|0; const t=rootMoves[e]; rootMoves[e]=rootMoves[r]; rootMoves[r]=t; }
+    root.untried=rootMoves;
+
     const D = DIFFICULTY==="easy" ? {mul:0.18, ms:600}
             : DIFFICULTY==="hard" ? {mul:2.4,  ms:4200}
             :                       {mul:1.0,  ms:1800};
@@ -1063,27 +1242,22 @@ function cpuMove(){
 function finishMove(root){
   _thinking=false;
   if(gameOver || turn!==CPU) return;
-  let best=null, bv=-1;
+  const cand=root.children.filter(c=>c.move>=0 && c.visits>0);   // real (non-pass) moves explored
+  let best=null;
   if(root._easy){
-    // Easy: usually a decent move, but sometimes a weaker one so beginners can win.
-    const cand=root.children.filter(c=>c.move>=0 && c.visits>0)
-                            .sort((a,b)=>b.visits-a.visits);
-    if(cand.length){
-      const r=Math.random();
-      const idx = r<0.45 ? 0 : r<0.78 ? Math.min(2,cand.length-1)
-                : Math.min((Math.random()*cand.length)|0, cand.length-1);
-      best=cand[idx];
-    }
+    const sorted=cand.sort((a,b)=>b.visits-a.visits);
+    if(sorted.length){ const r=Math.random();
+      const idx = r<0.5 ? 0 : r<0.8 ? Math.min(2,sorted.length-1) : Math.min((Math.random()*sorted.length)|0, sorted.length-1);
+      best=sorted[idx]; }
   } else {
-    // pick most-visited child (the robust MCTS choice)
-    for(let k=0;k<root.children.length;k++){ const c=root.children[k];
-      if(c.visits>bv){ bv=c.visits; best=c; } }
+    let bv=-1; for(const c of cand){ if(c.visits>bv){ bv=c.visits; best=c; } }
   }
-  if(!best || best.move<0){ doPass(); return; }   // PASS chosen / no move
+  // pass only when there is no constructive move left (never pass mid-game with moves available —
+  // that caused premature resignation; the "opponent passed & we're ahead" case is handled pre-search)
+  if(!best){ doPass(); return; }
   const mv=best.move, x=mv%SIZE, y=(mv/SIZE)|0;
   pushHistory();
-  if(place(x,y)){ buzz([4,16],false); updateHUD(); draw();
-    if(passes>=2 && gameOver){} }
+  if(place(x,y)){ buzz([4,16],false); updateHUD(); draw(); }
   else { history.pop(); doPass(); }               // illegal under full superko -> pass
 }
 function doPass(){
@@ -1103,7 +1277,7 @@ function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul
   t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 
 function setupCanvas(){
-  LOGICAL=Math.min(540, Math.floor(window.innerWidth*0.86));
+  LOGICAL=Math.max(80, Math.min(540, Math.floor((window.innerWidth||320)*0.86)));   // never 0 (a 0-size canvas crashes drawImage)
   PAD=LOGICAL*0.06; CELL=(LOGICAL-2*PAD)/(SIZE-1);
   const dpr=window.devicePixelRatio||1;
   canvas.style.width=LOGICAL+"px"; canvas.style.height=LOGICAL+"px";
@@ -1260,6 +1434,8 @@ document.getElementById("undoBtn").onclick=humanUndo;
 function startGame(){ clearPreview(); newGame(); if(MODE==="cpu" && turn===CPU) maybeCpu(); }   // CPU opens if you chose White
 document.getElementById("newBtn").onclick=()=>{ buzz([6,40,6]); startGame(); };
 document.getElementById("resultNew").onclick=()=>{ buzz([6,40,6]); startGame(); };
+document.getElementById("scoreConfirm").onclick=()=>{ buzz([6,30,6]); confirmScore(); };
+document.getElementById("scoreResume").onclick=()=>{ buzz(6); resumeFromScoring(); };
 
 /* ============================================================
    BOARD-SIZE SELECTOR
@@ -1913,7 +2089,11 @@ function renderStep(){
   const opts=lpEl("lpOpts"), btn=lpEl("lpBtn");
   if(step.type==="choice"){
     opts.style.display="flex";
-    opts.innerHTML=step.opts.map((o,i)=>`<div class="opt" data-i="${i}">${T(o)}</div>`).join("");
+    // shuffle the DISPLAY order, but keep data-i = the option's ORIGINAL index so the answer
+    // check (LP.sel===step.a) and the correct/wrong highlight stay valid. Fixes "answer is always on top".
+    const order=step.opts.map((_,i)=>i);
+    for(let e=order.length-1;e>0;e--){ const r=(Math.random()*(e+1))|0; const t=order[e]; order[e]=order[r]; order[r]=t; }
+    opts.innerHTML=order.map(i=>`<div class="opt" data-i="${i}">${T(step.opts[i])}</div>`).join("");
     opts.querySelectorAll(".opt").forEach(o=> o.onclick=()=>{ if(LP.checked) return; LP.sel=+o.dataset.i;
       opts.querySelectorAll(".opt").forEach(x=>x.classList.toggle("sel",x===o)); btn.disabled=false; buzz(5); });
   } else { opts.style.display="none"; opts.innerHTML=""; }
@@ -2342,6 +2522,10 @@ const TR={
   "Black to play":{zh:"黑方行棋",ja:"黒番",ko:"흑 차례"},
   "White to play":{zh:"白方行棋",ja:"白番",ko:"백 차례"},
   "Game over":{zh:"终局",ja:"終局",ko:"종국"},
+  /* ---- end-of-game scoring (mark dead stones) ---- */
+  "Tap any dead group to remove it":{zh:"点按死棋将其移除",ja:"死に石をタップして取り除く",ko:"죽은 돌을 탭하여 제거"},
+  "Resume":{zh:"继续",ja:"再開",ko:"계속"},
+  "Confirm score":{zh:"确认点目",ja:"スコアを確定",ko:"점수 확정"},
   /* ---- result / matchmaking ---- */
   "Game Over":{zh:"终局",ja:"終局",ko:"게임 종료"},
   "New Game":{zh:"新对局",ja:"新しい対局",ko:"새 게임"},
@@ -3016,6 +3200,7 @@ function staticNodes(){
     "#soonCard .soon-h, #soonCard .sr-t, #setCard .i18n, #soundSeg .seg-b, #confirmSeg .seg-b, "+
     ".setup .seg-label, #modeSeg .seg, #diffSeg .seg, #colorSeg .seg, #playBtn, "+
     "#ingameUI .ig-controls .btn, #igMenu, #confirmMoveBtn .cf-t, "+
+    "#scorePanel .sc-tip, #scoreResume, #scoreConfirm, "+
     "#resultOverlay h2, #resultNew, #mmCpu, #mmCancel");
 }
 function translateStatic(){
@@ -3160,57 +3345,109 @@ R3.makeBoardTexture=function(n){
   const TEX=this.TEX, pad=TEX*this.padFrac, cell=(TEX-2*pad)/(n-1);
   const c=document.createElement("canvas"); c.width=c.height=TEX; const g=c.getContext("2d");
   const rnd=mulberry(20260530+n);
-  // ---- extremely deep dark-brown mahogany base ----
+  // ---- amboyna / thuya burl base: saturated reddish-orange brown (bright centre → deep maroon rim) ----
   let grd=g.createRadialGradient(TEX*0.44,TEX*0.38,TEX*0.04,TEX*0.5,TEX*0.5,TEX*0.95);
-  grd.addColorStop(0,"#33180d"); grd.addColorStop(.35,"#23100a"); grd.addColorStop(.7,"#140803"); grd.addColorStop(1,"#070201");
+  grd.addColorStop(0,"#a8491a"); grd.addColorStop(.38,"#8a3615"); grd.addColorStop(.72,"#5f240e"); grd.addColorStop(1,"#2f1006");  // darker, deeper amboyna
   g.fillStyle=grd; g.fillRect(0,0,TEX,TEX);
-  // ---- long directional wood bands (the underlying plank grain) ----
-  for(let i=0;i<140;i++){ const y=rnd()*TEX,amp=4+rnd()*26,ph=rnd()*6.28,freq=0.003+rnd()*0.006;
-    const warm=rnd()>0.55, a=0.018+rnd()*0.05;
-    g.beginPath(); g.lineWidth=0.6+rnd()*2.2;
-    g.strokeStyle=warm?"rgba(120,70,38,"+(a*0.9)+")":"rgba(18,8,3,"+a+")";
-    for(let x=0;x<=TEX;x+=10){ const yy=y+Math.sin(x*freq+ph)*amp; x===0?g.moveTo(x,yy):g.lineTo(x,yy);} g.stroke(); }
-  // ---- burl knots with figured chatoyance ----
-  for(let i=0;i<9;i++){ const cx=rnd()*TEX,cy=rnd()*TEX,sc=0.55+rnd()*1.6,ph=rnd()*6.28,rings=20+(rnd()*20|0);
+  // ---- swirling directional grain (red-brown) ----
+  for(let i=0;i<150;i++){ const y=rnd()*TEX,amp=5+rnd()*30,ph=rnd()*6.28,freq=0.003+rnd()*0.007;
+    const warm=rnd()>0.5, a=0.02+rnd()*0.06;
+    g.beginPath(); g.lineWidth=0.6+rnd()*2.4;
+    g.strokeStyle=warm?"rgba(222,120,58,"+(a*0.95)+")":"rgba(56,22,8,"+a+")";
+    for(let x=0;x<=TEX;x+=8){ const yy=y+Math.sin(x*freq+ph)*amp; x===0?g.moveTo(x,yy):g.lineTo(x,yy);} g.stroke(); }
+  // ---- large burl swirl-knots (figured chatoyance) ----
+  for(let i=0;i<11;i++){ const cx=rnd()*TEX,cy=rnd()*TEX,sc=0.55+rnd()*1.7,ph=rnd()*6.28,rings=20+(rnd()*22|0);
     for(let k=rings;k>0;k--){ const rad=k*(4+sc*5); g.beginPath();
       for(let a=0;a<=6.32;a+=0.14){ const wob=1+0.18*Math.sin(a*3+ph)+0.10*Math.sin(a*5-ph)+0.05*Math.sin(a*8+ph);
         const rr=rad*wob,px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr*0.82; a===0?g.moveTo(px,py):g.lineTo(px,py); }
-      g.closePath(); g.lineWidth=1.4; g.strokeStyle=(k%2===0)?"rgba(165,100,52,0.06)":"rgba(14,6,2,0.20)"; g.stroke(); } }
+      g.closePath(); g.lineWidth=1.4; g.strokeStyle=(k%2===0)?"rgba(226,128,64,0.07)":"rgba(40,16,6,0.18)"; g.stroke(); } }
+  // ---- dense burl "eyes": the signature tight clustered knots ----
+  for(let i=0;i<170;i++){ const cx=rnd()*TEX,cy=rnd()*TEX,eyes=2+(rnd()*4|0),baseR=2+rnd()*5,seed=rnd()*6.28,dark=rnd()>0.5;
+    for(let k=eyes;k>0;k--){ const rad=k*baseR*(0.7+rnd()*0.5); g.beginPath();
+      for(let a=0;a<=6.32;a+=0.5){ const wob=1+0.22*Math.sin(a*2+seed)+0.12*Math.sin(a*4-seed);
+        const rr=rad*wob,px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr*0.9; a===0?g.moveTo(px,py):g.lineTo(px,py); }
+      g.closePath(); g.lineWidth=0.8; g.strokeStyle=dark?"rgba(52,20,8,0.18)":"rgba(206,104,50,0.13)"; g.stroke(); }
+    if(rnd()>0.4){ g.fillStyle="rgba(34,14,6,0.34)"; g.beginPath(); g.arc(cx,cy,0.8+rnd()*1.4,0,7); g.fill(); } }
   g.lineCap="round";
-  // ---- marble-like mineral veins: warm gold filaments + dark fissures ----
-  for(let i=0;i<40;i++){ const vert=rnd()>0.5, bright=rnd()>0.45;
+  // ---- dark burl pips / pores: the little black holes scattered through amboyna & thuya burl ----
+  for(let i=0;i<72;i++){ const cx=rnd()*TEX,cy=rnd()*TEX,r=1.5+rnd()*4.5, e=0.6+rnd()*0.7, rot=rnd()*6.28;
+    g.save(); g.translate(cx,cy); g.rotate(rot); g.scale(1,e);
+    g.fillStyle="rgba(8,4,2,"+(0.45+rnd()*0.42)+")"; g.beginPath(); g.arc(0,0,r,0,7); g.fill(); g.restore();
+    g.strokeStyle="rgba(150,66,30,0.18)"; g.lineWidth=1; g.beginPath(); g.arc(cx,cy,r+1.2,0,7); g.stroke(); }
+  // ---- fine grain veins (orange filaments + dark fissures) ----
+  for(let i=0;i<42;i++){ const vert=rnd()>0.5, bright=rnd()>0.45;
     let x=rnd()*TEX, y=rnd()*TEX, ang=(vert?Math.PI/2:0)+(rnd()-0.5)*0.7; const steps=24+(rnd()*22|0);
     g.beginPath(); g.moveTo(x,y);
     for(let s=0;s<steps;s++){ ang+=(rnd()-0.5)*0.55; const len=TEX*0.025+rnd()*TEX*0.035; x+=Math.cos(ang)*len; y+=Math.sin(ang)*len; g.lineTo(x,y); }
-    g.lineWidth=0.7+rnd()*1.8; g.strokeStyle=bright?"rgba(200,156,96,"+(0.07+rnd()*0.12)+")":"rgba(8,3,1,"+(0.12+rnd()*0.18)+")"; g.stroke();
-    if(bright){ g.lineWidth=0.5; g.strokeStyle="rgba(236,196,138,"+(0.06+rnd()*0.07)+")"; g.stroke(); } }
+    g.lineWidth=0.7+rnd()*1.8; g.strokeStyle=bright?"rgba(224,128,66,"+(0.07+rnd()*0.12)+")":"rgba(18,7,2,"+(0.12+rnd()*0.2)+")"; g.stroke();
+    if(bright){ g.lineWidth=0.5; g.strokeStyle="rgba(240,160,96,"+(0.06+rnd()*0.07)+")"; g.stroke(); } }
   // ---- fine speckle / mineral dust for depth ----
   for(let i=0;i<2600;i++){ const x=rnd()*TEX,y=rnd()*TEX,r=rnd()*1.3; const warm=rnd()>0.5;
-    g.fillStyle=warm?"rgba(150,95,50,0.05)":"rgba(6,2,1,0.08)"; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
-  // ---- broad sheen band (chatoyant wood luster catching light) ----
+    g.fillStyle=warm?"rgba(196,100,48,0.05)":"rgba(14,6,2,0.09)"; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
+  // ---- broad sheen band (chatoyant lustre catching light) ----
   let sh=g.createLinearGradient(0,0,TEX,TEX);
-  sh.addColorStop(0,"rgba(150,98,54,0)"); sh.addColorStop(.46,"rgba(168,112,62,0.10)");
-  sh.addColorStop(.54,"rgba(180,122,70,0.12)"); sh.addColorStop(1,"rgba(150,98,54,0)");
+  sh.addColorStop(0,"rgba(210,110,55,0)"); sh.addColorStop(.46,"rgba(224,126,64,0.10)");
+  sh.addColorStop(.54,"rgba(236,140,76,0.12)"); sh.addColorStop(1,"rgba(210,110,55,0)");
   g.fillStyle=sh; g.fillRect(0,0,TEX,TEX);
-  // ---- engraved grid: dark groove + glowing warm-gold inlaid line with halo ----
-  const bp=i=>pad+i*cell;
-  g.strokeStyle="rgba(6,2,1,0.85)"; g.lineWidth=3.4;                 // shadow groove (depth)
-  for(let i=0;i<n;i++){ g.beginPath(); g.moveTo(bp(0),bp(i)+1.6); g.lineTo(bp(n-1),bp(i)+1.6); g.stroke();
-    g.beginPath(); g.moveTo(bp(i)+1.6,bp(0)); g.lineTo(bp(i)+1.6,bp(n-1)); g.stroke(); }
-  // soft glow halo under the lines
-  g.save(); g.shadowColor="rgba(236,196,130,0.9)"; g.shadowBlur=7;
-  g.strokeStyle="rgba(214,172,108,0.5)"; g.lineWidth=2.2;
+  // ---- extra high-frequency fibre detail so it reads as real wood, not a flat print ----
+  for(let i=0;i<5200;i++){ const x=rnd()*TEX,y=rnd()*TEX,len=2+rnd()*9,ang=(rnd()>0.5?0:Math.PI/2)+(rnd()-0.5)*0.5;
+    g.strokeStyle=rnd()>0.5?"rgba(232,150,90,0.05)":"rgba(20,8,3,0.07)"; g.lineWidth=0.5;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len); g.stroke(); }
+  // ---- inked grid + hoshi (shared with the real-photo path) ----
+  this.inkBoardGrid(g,n);
+  return this._mapsFromCanvas(c);
+};
+/* draw the goban grid + star points onto a 2D context (shared by procedural & real-wood textures) */
+R3.inkBoardGrid=function(g,n){
+  const TEX=this.TEX, pad=TEX*this.padFrac, cell=(TEX-2*pad)/(n-1), bp=i=>pad+i*cell;
+  g.lineCap="butt";
+  g.strokeStyle="rgba(28,15,6,0.24)"; g.lineWidth=3.0;            // soft under-shadow → engraved depth
+  for(let i=0;i<n;i++){ g.beginPath(); g.moveTo(bp(0),bp(i)+1.3); g.lineTo(bp(n-1),bp(i)+1.3); g.stroke();
+    g.beginPath(); g.moveTo(bp(i)+1.3,bp(0)); g.lineTo(bp(i)+1.3,bp(n-1)); g.stroke(); }
+  g.strokeStyle="rgba(14,9,4,0.95)"; g.lineWidth=1.8;             // crisp dark ink line
   for(let i=0;i<n;i++){ g.beginPath(); g.moveTo(bp(0),bp(i)); g.lineTo(bp(n-1),bp(i)); g.stroke();
     g.beginPath(); g.moveTo(bp(i),bp(0)); g.lineTo(bp(i),bp(n-1)); g.stroke(); }
-  g.restore();
-  // crisp bright inlay on top
-  g.strokeStyle="rgba(244,212,150,0.92)"; g.lineWidth=1.5;
-  for(let i=0;i<n;i++){ g.beginPath(); g.moveTo(bp(0),bp(i)); g.lineTo(bp(n-1),bp(i)); g.stroke();
-    g.beginPath(); g.moveTo(bp(i),bp(0)); g.lineTo(bp(i),bp(n-1)); g.stroke(); }
-  g.save(); g.shadowColor="rgba(244,212,150,0.95)"; g.shadowBlur=8; g.fillStyle="rgba(248,220,160,0.95)";
-  for(const [sx,sy] of starPoints(n)){ g.beginPath(); g.arc(bp(sx),bp(sy),Math.max(4.5,cell*0.082),0,7); g.fill(); }
-  g.restore();
-  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=8; return tex;
+  g.fillStyle="rgba(10,6,3,0.97)";
+  for(const [sx,sy] of starPoints(n)){ g.beginPath(); g.arc(bp(sx),bp(sy),Math.max(4.5,cell*0.085),0,7); g.fill(); }
+};
+/* derive {map,bump,rough} from a finished colour canvas — gives the board real surface relief:
+   bump = luminance (pores pit, figure raises, lines engrave); rough = chatoyance (figure glossy, pores matte). */
+R3._mapsFromCanvas=function(c){
+  const TEX=c.width, g=c.getContext("2d"), src=g.getImageData(0,0,TEX,TEX).data;
+  const bc=document.createElement("canvas"); bc.width=bc.height=TEX; const bg=bc.getContext("2d"); const bd=bg.createImageData(TEX,TEX);
+  const rc=document.createElement("canvas"); rc.width=rc.height=TEX; const rg=rc.getContext("2d"); const rd=rg.createImageData(TEX,TEX);
+  for(let p=0;p<src.length;p+=4){
+    const lum=src[p]*0.299+src[p+1]*0.587+src[p+2]*0.114;          // 0..255
+    const h=128+(lum-128)*0.55;                                    // subtle relief
+    bd.data[p]=bd.data[p+1]=bd.data[p+2]=h; bd.data[p+3]=255;
+    const rv=Math.max(0,Math.min(255,(0.64-(lum/255)*0.38)*255));  // bright→glossy, dark→matte
+    rd.data[p]=rd.data[p+1]=rd.data[p+2]=rv; rd.data[p+3]=255;
+  }
+  bg.putImageData(bd,0,0); rg.putImageData(rd,0,0);
+  const map=new THREE.CanvasTexture(c); map.colorSpace=THREE.SRGBColorSpace; map.anisotropy=8;
+  const bump=new THREE.CanvasTexture(bc); bump.anisotropy=4;
+  const rough=new THREE.CanvasTexture(rc); rough.anisotropy=4;
+  return {map,bump,rough};
+};
+/* optional: if a real amboyna photo `wood.jpg` sits next to index.html, composite it (grid on top)
+   over the procedural board for true photographic wood. Silent fallback if the file is absent. */
+R3.loadRealWood=function(n){
+  const self=this, TEX=this.TEX, im=new Image();
+  im.onload=function(){ try{
+    const c=document.createElement("canvas"); c.width=c.height=TEX; const g=c.getContext("2d");
+    const s=Math.max(TEX/im.width,TEX/im.height), w=im.width*s, h=im.height*s;
+    g.drawImage(im,(TEX-w)/2,(TEX-h)/2,w,h);
+    g.fillStyle="rgba(22,9,3,0.20)"; g.fillRect(0,0,TEX,TEX);       // deepen for goban richness
+    self.inkBoardGrid(g,n);
+    const maps=self._mapsFromCanvas(c);
+    if(self.surfMat.map) self.surfMat.map.dispose();
+    if(self.surfMat.bumpMap) self.surfMat.bumpMap.dispose();
+    if(self.surfMat.roughnessMap) self.surfMat.roughnessMap.dispose();
+    self.surfMat.map=maps.map; self.surfMat.bumpMap=maps.bump; self.surfMat.roughnessMap=maps.rough;
+    self.surfMat.needsUpdate=true;
+  }catch(e){} };
+  im.onerror=function(){};                                          // no file → keep procedural
+  im.src="wood.jpg";
 };
 /* emissive map: black board, glowing warm-gold grid + stars, so the lines
    literally emit a soft light (paired with surfMat.emissive). */
@@ -3250,11 +3487,27 @@ R3.makeSkyGradient=function(){
 };
 
 /* low dark table/dais the board + bowls rest on (top flush with board underside) */
+R3.makeTableTexture=function(){                 // dark walnut planks — grain, seams, knots
+  const TEX=512, c=document.createElement("canvas"); c.width=c.height=TEX; const g=c.getContext("2d"); const rnd=mulberry(7731);
+  let grd=g.createLinearGradient(0,0,TEX,TEX); grd.addColorStop(0,"#2c1c11"); grd.addColorStop(0.5,"#201409"); grd.addColorStop(1,"#160d07");
+  g.fillStyle=grd; g.fillRect(0,0,TEX,TEX);
+  for(let i=0;i<240;i++){ const y=rnd()*TEX,amp=2+rnd()*11,ph=rnd()*6.28,freq=0.004+rnd()*0.01,a=0.03+rnd()*0.08,warm=rnd()>0.5;
+    g.strokeStyle=warm?"rgba(124,82,46,"+a+")":"rgba(8,4,2,"+(a*1.2)+")"; g.lineWidth=0.5+rnd()*1.5;
+    g.beginPath(); for(let x=0;x<=TEX;x+=8){ const yy=y+Math.sin(x*freq+ph)*amp; x===0?g.moveTo(x,yy):g.lineTo(x,yy);} g.stroke(); }
+  const planks=5; for(let p=1;p<planks;p++){ const x=p*TEX/planks+(rnd()-0.5)*12;
+    g.strokeStyle="rgba(0,0,0,0.55)"; g.lineWidth=2.6; g.beginPath(); g.moveTo(x,0); g.lineTo(x,TEX); g.stroke();
+    g.strokeStyle="rgba(96,62,34,0.22)"; g.lineWidth=1; g.beginPath(); g.moveTo(x+2,0); g.lineTo(x+2,TEX); g.stroke(); }
+  for(let i=0;i<6;i++){ const cx=rnd()*TEX,cy=rnd()*TEX; for(let k=11;k>0;k--){ g.beginPath();
+    g.ellipse(cx,cy,k*2.3,k*1.4,rnd()*6.28,0,6.3); g.strokeStyle=k%2?"rgba(10,5,2,0.18)":"rgba(92,58,32,0.10)"; g.lineWidth=1.2; g.stroke(); } }
+  for(let i=0;i<1500;i++){ const x=rnd()*TEX,y=rnd()*TEX; g.fillStyle=rnd()>0.5?"rgba(112,72,40,0.05)":"rgba(0,0,0,0.07)"; g.beginPath(); g.arc(x,y,rnd()*1.1,0,6.3); g.fill(); }
+  const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1.5,1.5); tex.anisotropy=8; return tex;
+};
 R3.makeTable=function(bw){
   const half=bw/2 + this.bowlGap + this.bowlR*2 + bw*0.10;
   const h=this.tableH;
+  this.tableTex=this.tableTex||this.makeTableTexture();
   const m=new THREE.Mesh(new THREE.BoxGeometry(half*2,h,half*2),
-    new THREE.MeshPhysicalMaterial({color:0x241510,roughness:0.45,metalness:0,clearcoat:0.55,clearcoatRoughness:0.35,envMapIntensity:0.9}));
+    new THREE.MeshPhysicalMaterial({color:0xffffff,map:this.tableTex,bumpMap:this.tableTex,bumpScale:0.25,roughness:0.5,metalness:0,clearcoat:0.5,clearcoatRoughness:0.35,envMapIntensity:0.8}));
   m.position.y=-this.thick - h/2; m.castShadow=true; m.receiveShadow=true;
   return m;
 };
@@ -3320,16 +3573,31 @@ R3.makeFoliageTexture=function(){                               // a spray/clust
     leaf(a, S*(0.42+Math.random()*0.5), S*(0.03+Math.random()*0.035), Math.random()>0.5); }
   const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; return tex;
 };
-R3.makeGroundTexture=function(){                               // mottled forest floor with leaf litter
+R3.makeGroundTexture=function(){                               // damp earth + moss + leaf litter + pebbles
   const S=512,c=document.createElement("canvas"); c.width=c.height=S; const g=c.getContext("2d");
-  g.fillStyle="#222a1a"; g.fillRect(0,0,S,S);
-  for(let i=0;i<260;i++){ const x=Math.random()*S,y=Math.random()*S,r=8+Math.random()*60,lr=Math.random();
-    g.fillStyle=lr>0.6?"rgba(52,62,34,0.20)":lr>0.3?"rgba(16,20,11,0.32)":"rgba(40,34,18,0.16)";
+  g.fillStyle="#241d12"; g.fillRect(0,0,S,S);                  // warm dark earth base
+  // broad soil/moss mottling
+  for(let i=0;i<300;i++){ const x=Math.random()*S,y=Math.random()*S,r=8+Math.random()*64,lr=Math.random();
+    g.fillStyle=lr>0.66?"rgba(58,70,34,0.22)":lr>0.4?"rgba(14,16,9,0.34)":lr>0.2?"rgba(58,40,20,0.20)":"rgba(74,52,26,0.16)";
     g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
-  const litter=["rgba(120,120,50,0.5)","rgba(90,110,45,0.5)","rgba(150,120,60,0.45)","rgba(70,90,38,0.5)"];
-  for(let i=0;i<440;i++){ const x=Math.random()*S,y=Math.random()*S,a=Math.random()*6.28,l=3+Math.random()*7;
-    g.save(); g.translate(x,y); g.rotate(a); g.fillStyle=litter[Math.floor(Math.random()*4)];
-    g.beginPath(); g.ellipse(0,0,l,l*0.4,0,0,7); g.fill(); g.restore(); }
+  // damp dark loam patches
+  for(let i=0;i<26;i++){ const x=Math.random()*S,y=Math.random()*S,r=20+Math.random()*70;
+    g.fillStyle="rgba(8,8,5,0.22)"; g.beginPath(); g.ellipse(x,y,r,r*0.7,Math.random()*6.28,0,7); g.fill(); }
+  // moss cushions (richer green)
+  for(let i=0;i<40;i++){ const x=Math.random()*S,y=Math.random()*S,r=10+Math.random()*34;
+    g.fillStyle="rgba(64,92,40,0.18)"; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
+    for(let j=0;j<20;j++){ g.fillStyle="rgba(96,128,56,0.16)"; g.beginPath();
+      g.arc(x+(Math.random()-0.5)*r*1.6,y+(Math.random()-0.5)*r*1.6,0.7+Math.random()*1.6,0,7); g.fill(); } }
+  // leaf litter
+  const litter=["rgba(150,120,55,0.55)","rgba(120,130,55,0.5)","rgba(170,110,55,0.5)","rgba(90,100,42,0.5)","rgba(140,70,38,0.5)"];
+  for(let i=0;i<520;i++){ const x=Math.random()*S,y=Math.random()*S,a=Math.random()*6.28,l=3+Math.random()*8;
+    g.save(); g.translate(x,y); g.rotate(a); g.fillStyle=litter[Math.floor(Math.random()*litter.length)];
+    g.beginPath(); g.ellipse(0,0,l,l*0.4,0,0,7); g.fill();
+    g.strokeStyle="rgba(40,28,12,0.3)"; g.lineWidth=0.5; g.beginPath(); g.moveTo(-l,0); g.lineTo(l,0); g.stroke(); g.restore(); }
+  // small stones / pebbles with a highlight
+  for(let i=0;i<70;i++){ const x=Math.random()*S,y=Math.random()*S,r=1.5+Math.random()*4.5,sh=0.4+Math.random()*0.4;
+    g.fillStyle="rgba("+(90*sh|0)+","+(86*sh|0)+","+(80*sh|0)+",0.85)"; g.beginPath(); g.ellipse(x,y,r,r*0.8,Math.random()*6.28,0,7); g.fill();
+    g.fillStyle="rgba(220,215,205,0.35)"; g.beginPath(); g.arc(x-r*0.3,y-r*0.3,r*0.35,0,7); g.fill(); }
   const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; return tex;
 };
 
@@ -3361,7 +3629,7 @@ R3.buildGrove=function(bw,groundY){
   culms.castShadow=culms.receiveShadow=false; grp.add(culms);
   // ---- canopy foliage hung at the culm tops ----
   const fol=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1),
-    new THREE.MeshStandardMaterial({map:this.foliageTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.85,metalness:0}), tops.length*2);
+    new THREE.MeshStandardMaterial({map:this.foliageTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.52,metalness:0,envMapIntensity:0.85}), tops.length*2);
   let fi=0;
   for(const tp of tops){ const clusters=1+(Math.random()<0.7?1:0);
     for(let c2=0;c2<clusters;c2++){ const sc=bw*(0.5+Math.random()*0.7);
@@ -3373,7 +3641,7 @@ R3.buildGrove=function(bw,groundY){
   // ---- low undergrowth around the periphery ----
   const K=190;
   const und=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1),
-    new THREE.MeshStandardMaterial({map:this.foliageTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.9,metalness:0}), K);
+    new THREE.MeshStandardMaterial({map:this.foliageTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.58,metalness:0,envMapIntensity:0.8}), K);
   let ui=0;
   for(let i=0;i<K;i++){ let x,z,tries=0;
     do{ const ang=Math.random()*6.28, rr=clearR*0.6+Math.random()*bw*4.5; x=Math.cos(ang)*rr; z=Math.sin(ang)*rr-bw*0.3; tries++; }
@@ -3396,6 +3664,229 @@ R3.newLeaf=function(anywhere){
     y: anywhere ? this._leafBottom+Math.random()*(this._leafTop-this._leafBottom) : this._leafTop+Math.random()*this._leafTop*0.4,
     vy:0.35+Math.random()*0.55, amp:0.25+Math.random()*0.5, sway:0.6+Math.random()*1.0,
     phase:Math.random()*6.28, rot:Math.random()*6.28, spin:(Math.random()-0.5)*2.2, tilt:Math.random()*6.28 };
+};
+/* drifting glowing fireflies — a little "spirit essence" floating through the grove */
+R3.buildFireflies=function(bw,groundY){
+  const N=42, geo=new THREE.BufferGeometry(), pos=new Float32Array(N*3); this._ff=[];
+  for(let i=0;i<N;i++){ const ang=Math.random()*6.28, rr=bw*0.75+Math.random()*bw*4.2;
+    const x=Math.cos(ang)*rr, z=Math.sin(ang)*rr-bw*0.3, y=groundY+bw*0.25+Math.random()*bw*1.7;
+    pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z;
+    this._ff.push({x,z,baseY:y,phase:Math.random()*6.28,sp:0.2+Math.random()*0.6,amp:0.3+Math.random()*0.7}); }
+  geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  const gc=document.createElement("canvas"); gc.width=gc.height=64; const gg=gc.getContext("2d");
+  const grd=gg.createRadialGradient(32,32,0,32,32,32);
+  grd.addColorStop(0,"rgba(255,244,190,1)"); grd.addColorStop(.3,"rgba(255,212,120,0.7)"); grd.addColorStop(1,"rgba(255,180,80,0)");
+  gg.fillStyle=grd; gg.fillRect(0,0,64,64);
+  const mat=new THREE.PointsMaterial({size:bw*0.17,map:new THREE.CanvasTexture(gc),transparent:true,
+    blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true,opacity:0.9});
+  const pts=new THREE.Points(geo,mat); pts.frustumCulled=false; this.fireflies=pts; return pts;
+};
+R3.updateFireflies=function(dt,now){
+  if(!this.fireflies||!this._ff) return; const a=this.fireflies.geometry.attributes.position.array, bw=this.bw;
+  for(let i=0;i<this._ff.length;i++){ const f=this._ff[i];
+    a[i*3]  =f.x   +Math.sin(now*0.0004*f.sp+f.phase)*f.amp*bw*0.3;
+    a[i*3+1]=f.baseY+Math.sin(now*0.0007*f.sp+f.phase*1.7)*f.amp*bw*0.22;
+    a[i*3+2]=f.z   +Math.cos(now*0.0005*f.sp+f.phase)*f.amp*bw*0.3; }
+  this.fireflies.geometry.attributes.position.needsUpdate=true;
+  // fireflies appear ONLY in deep night — ramp in above 0.75 so they're fully gone by dawn/day (no daytime dots)
+  const nf=Math.max(0,((this._night||0)-0.75)/0.25);
+  this.fireflies.visible=nf>0.01;
+  this.fireflies.material.opacity=nf*(0.6+0.4*Math.sin(now*0.0018));
+};
+/* ===================== scenery: pond · koi · lanterns · god-rays · mist · plants · crane ===================== */
+R3.makeWaterNormal=function(){                                 // tiling ripple normal map for the pond shimmer
+  const S=256,c=document.createElement("canvas"); c.width=c.height=S; const g=c.getContext("2d"); const img=g.createImageData(S,S);
+  const H=(x,y)=>Math.sin(x*0.10+Math.cos(y*0.07)*1.5)*0.5+Math.sin(y*0.13-Math.cos(x*0.05)*1.2)*0.5;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){ const hx=H(x+1,y)-H(x-1,y), hy=H(x,y+1)-H(x,y-1);
+    let nx=-hx,ny=-hy,nz=1.4; const L=Math.hypot(nx,ny,nz); nx/=L; ny/=L; nz/=L; const i=(y*S+x)*4;
+    img.data[i]=(nx*0.5+0.5)*255; img.data[i+1]=(ny*0.5+0.5)*255; img.data[i+2]=(nz*0.5+0.5)*255; img.data[i+3]=255; }
+  g.putImageData(img,0,0); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); return t;
+};
+R3.buildPond=function(bw,groundY){
+  const grp=new THREE.Group(), R=bw*0.72, cx=bw*1.45, cz=-bw*0.1;   // RIGHT of the board, in view, clear of the bowls
+  this._pond={cx,cz,R}; this._pondY=groundY+0.05;
+  const lip=new THREE.Mesh(new THREE.RingGeometry(R*0.9,R*1.22,40),
+    new THREE.MeshStandardMaterial({color:0x140f09,roughness:1,metalness:0,side:THREE.DoubleSide}));
+  lip.rotation.x=-Math.PI/2; lip.position.set(cx,groundY+0.02,cz); grp.add(lip);
+  this.waterNormal=this.waterNormal||this.makeWaterNormal();
+  const wmat=new THREE.MeshPhysicalMaterial({color:0x09161a,roughness:0.06,metalness:0,clearcoat:1,clearcoatRoughness:0.05,
+    envMapIntensity:1.7,reflectivity:0.95,normalMap:this.waterNormal,normalScale:new THREE.Vector2(0.22,0.22)});
+  const water=new THREE.Mesh(new THREE.CircleGeometry(R,48),wmat);
+  water.rotation.x=-Math.PI/2; water.position.set(cx,this._pondY,cz); grp.add(water); this.waterMat=wmat;
+  const padMat=new THREE.MeshStandardMaterial({color:0x2f5a2a,roughness:0.45,metalness:0,side:THREE.DoubleSide,envMapIntensity:0.7});
+  for(let i=0;i<10;i++){ const a=Math.random()*6.28, rr=Math.random()*R*0.78, ps=bw*(0.10+Math.random()*0.12);
+    const pad=new THREE.Mesh(new THREE.CircleGeometry(ps,18,0.45,5.7),padMat);
+    pad.rotation.x=-Math.PI/2; pad.rotation.z=a; pad.position.set(cx+Math.cos(a)*rr,this._pondY+0.02,cz+Math.sin(a)*rr); grp.add(pad);
+    if(Math.random()<0.4){ const fl=new THREE.Mesh(new THREE.ConeGeometry(ps*0.3,ps*0.5,7),
+      new THREE.MeshStandardMaterial({color:0xf2c0d0,roughness:0.6,emissive:0x3a1020,emissiveIntensity:0.25}));
+      fl.position.set(cx+Math.cos(a)*rr,this._pondY+0.1,cz+Math.sin(a)*rr); grp.add(fl); } }
+  return grp;
+};
+R3.buildKoi=function(bw,groundY){
+  const grp=new THREE.Group(), P=this._pond, wy=(this._pondY||0)-0.015; this._koi=[];
+  const cols=[0xe8602a,0xf2f0e8,0xe8602a,0xd8842a];
+  for(let i=0;i<4;i++){
+    const sc=bw*(0.08+Math.random()*0.04), bodyGeo=new THREE.SphereGeometry(sc,12,10); bodyGeo.scale(1.6,0.26,0.55);
+    const mat=new THREE.MeshStandardMaterial({color:cols[i%cols.length],roughness:0.5,metalness:0,envMapIntensity:0.6});
+    const m=new THREE.Mesh(bodyGeo,mat);
+    const tail=new THREE.Mesh(new THREE.ConeGeometry(sc*0.5,sc*0.9,8),mat); tail.rotation.z=-Math.PI/2; tail.position.x=-sc*1.7; m.add(tail);
+    grp.add(m); this._koi.push({m,r:P.R*(0.3+Math.random()*0.5),a:Math.random()*6.28,sp:(0.10+Math.random()*0.14)*(Math.random()<0.5?-1:1),bob:Math.random()*6.28,wy});
+  }
+  this.koiGroup=grp; return grp;
+};
+R3.updateKoi=function(dt,now){ if(!this._koi||!this._pond) return; const P=this._pond;
+  for(const k of this._koi){ k.a+=k.sp*dt; const x=P.cx+Math.cos(k.a)*k.r, z=P.cz+Math.sin(k.a)*k.r;
+    k.m.position.set(x,k.wy+Math.sin(now*0.001+k.bob)*0.03,z); k.m.rotation.y=-k.a+(k.sp>0?-Math.PI/2:Math.PI/2); } };
+R3.buildLanterns=function(bw,groundY){          // ONE stone lantern + a cluster of rocks, at the pond's near edge
+  const grp=new THREE.Group(), P=this._pond||{cx:bw*2.6,cz:-bw*2.3,R:bw*1.2}; this._lanterns=[];
+  const stone=new THREE.MeshStandardMaterial({color:0x78726a,roughness:0.95,metalness:0});
+  const moss=new THREE.MeshStandardMaterial({color:0x4a5a32,roughness:1,metalness:0});
+  const s=bw*0.34, L=new THREE.Group();
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(s*0.5,s*0.64,s*0.5,8),stone); base.position.y=s*0.25; L.add(base);
+  const pillar=new THREE.Mesh(new THREE.CylinderGeometry(s*0.2,s*0.26,s*1.5,8),stone); pillar.position.y=s*1.25; L.add(pillar);
+  const box=new THREE.Mesh(new THREE.CylinderGeometry(s*0.46,s*0.46,s*0.6,6),stone); box.position.y=s*2.25; L.add(box);
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(s*0.3,12,10),new THREE.MeshBasicMaterial({color:0xffd28a})); glow.position.y=s*2.25; L.add(glow);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(s*0.7,s*0.5,6),stone); roof.position.y=s*2.78; L.add(roof);
+  const cap=new THREE.Mesh(new THREE.ConeGeometry(s*0.45,s*0.18,6),moss); cap.position.y=s*3.05; L.add(cap);
+  const pl=new THREE.PointLight(0xffb866,1.0,s*13,2); pl.position.y=s*2.25; L.add(pl);
+  L.position.set(P.cx-bw*0.2, groundY, P.cz+P.R*1.05); grp.add(L);
+  this._lanterns.push({light:pl,glow,baseInt:1.0});
+  const rockMat=new THREE.MeshStandardMaterial({color:0x5a564f,roughness:0.95,metalness:0});
+  for(let i=0;i<7;i++){ const a=Math.random()*6.28, rr=s*(0.9+Math.random()*1.7), rs=bw*(0.10+Math.random()*0.16);
+    const rk=new THREE.Mesh(new THREE.DodecahedronGeometry(rs,0),rockMat);
+    rk.position.set(L.position.x+Math.cos(a)*rr,groundY+rs*0.5,L.position.z+Math.sin(a)*rr);
+    rk.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28); rk.scale.y=0.7; grp.add(rk); }
+  return grp;
+};
+R3.buildSideLantern=function(bw,groundY){       // ancient Chinese hanging palace lantern (宫灯) beside the board — the night light
+  const grp=new THREE.Group(), s=bw*0.5, px=-bw*1.15, pz=-bw*0.15;
+  const wood=new THREE.MeshStandardMaterial({color:0x2a1a10,roughness:0.7,metalness:0.15});
+  const gold=new THREE.MeshStandardMaterial({color:0xb8902f,roughness:0.35,metalness:0.85,envMapIntensity:1.2});
+  const silk=new THREE.MeshStandardMaterial({color:0xc0241c,roughness:0.55,emissive:0xff5a28,emissiveIntensity:0.3,side:THREE.DoubleSide});
+  const foot=new THREE.Mesh(new THREE.CylinderGeometry(s*0.26,s*0.34,s*0.18,8),wood); foot.position.set(px,groundY+s*0.09,pz); grp.add(foot);
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(s*0.09,s*0.12,s*1.7,8),wood); post.position.set(px,groundY+s*0.95,pz); grp.add(post);
+  const arm=new THREE.Mesh(new THREE.CylinderGeometry(s*0.07,s*0.07,s*0.62,6),wood); arm.position.set(px+s*0.28,groundY+s*1.72,pz); arm.rotation.z=Math.PI/2; grp.add(arm);
+  const lx=px+s*0.56, ly=groundY+s*1.18, L=new THREE.Group(); L.position.set(lx,ly,pz);   // the hanging lantern
+  const capT=new THREE.Mesh(new THREE.CylinderGeometry(s*0.34,s*0.4,s*0.1,6),gold); capT.position.y=s*0.52; L.add(capT);
+  const finial=new THREE.Mesh(new THREE.SphereGeometry(s*0.1,10,8),gold); finial.position.y=s*0.64; L.add(finial);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(s*0.44,s*0.44,s*0.84,6),silk); L.add(body);
+  for(let i=0;i<6;i++){ const a=i/6*6.283, rib=new THREE.Mesh(new THREE.CylinderGeometry(s*0.025,s*0.025,s*0.86,4),gold);
+    rib.position.set(Math.cos(a)*s*0.4,0,Math.sin(a)*s*0.4); rib.rotation.y=-a; L.add(rib); }
+  const capB=new THREE.Mesh(new THREE.CylinderGeometry(s*0.4,s*0.32,s*0.1,6),gold); capB.position.y=-s*0.48; L.add(capB);
+  const cord=new THREE.Mesh(new THREE.CylinderGeometry(s*0.02,s*0.02,s*0.34,5),new THREE.MeshStandardMaterial({color:0xd23a1a,roughness:0.6})); cord.position.y=-s*0.7; L.add(cord);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(s*0.07,8,8),gold); knob.position.y=-s*0.88; L.add(knob);
+  const tuft=new THREE.Mesh(new THREE.ConeGeometry(s*0.09,s*0.3,8),new THREE.MeshStandardMaterial({color:0xd23a1a,roughness:0.6})); tuft.position.y=-s*1.02; tuft.rotation.x=Math.PI; L.add(tuft);
+  const pl=new THREE.PointLight(0xffc680,3.0,bw*14,1.5); L.add(pl);            // warm light flooding the board at night
+  grp.add(L); this._sideLant=L;
+  this._lanterns=this._lanterns||[];
+  this._lanterns.push({light:pl,glow:null,body:body,baseInt:3.0});
+  return grp;
+};
+R3.buildGodRays=function(bw,groundY){           // soft volumetric light shafts (sun by day, moon by night) over the WHOLE scene
+  // soft beam texture: bright near the source (top), fading down AND feathered on the sides so shafts blend
+  const S=128,c=document.createElement("canvas"); c.width=c.height=S; const g=c.getContext("2d");
+  let vg=g.createLinearGradient(0,0,0,S); vg.addColorStop(0,"rgba(255,255,255,0.95)"); vg.addColorStop(0.45,"rgba(255,255,255,0.62)"); vg.addColorStop(0.8,"rgba(255,255,255,0.28)"); vg.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle=vg; g.fillRect(0,0,S,S);
+  g.globalCompositeOperation="destination-in";
+  let hg=g.createLinearGradient(0,0,S,0); hg.addColorStop(0,"rgba(0,0,0,0)"); hg.addColorStop(0.5,"rgba(0,0,0,1)"); hg.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=hg; g.fillRect(0,0,S,S); g.globalCompositeOperation="source-over";
+  const tex=new THREE.CanvasTexture(c);
+  // shared additive material (white; the day/night cycle tints + fades it). depthWrite off so it never blocks anything.
+  this.rayMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0.12,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+  const grp=new THREE.Group(); this._rays=[]; this.poolMat=null; this._pools=null;   // (no harsh light-pools)
+  // DISTINCT glowing shafts that pop: narrow & bright (soft feathered edges), evenly spread across the width,
+  // varied in DEPTH and STAGGERED in height/length so the bright tops never line up into one hard line.
+  const n=13, spanX=bw*5.6;
+  for(let i=0;i<n;i++){
+    const x=-spanX/2 + i*(spanX/(n-1)) + (Math.random()-0.5)*bw*0.25;   // even across the full width
+    const z=-bw*2.6 + Math.random()*bw*3.0;                            // varied depth (forest → table → board)
+    const w=bw*(0.18+Math.random()*0.16), h=bw*(6+Math.random()*2.5);  // narrow, distinct; staggered length
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),this.rayMat);
+    m.position.set(x, groundY+bw*(1.2+Math.random()*0.9), z);          // staggered height → no aligned bright line
+    m.rotation.x=-0.6; m.rotation.z=0.12+(Math.random()-0.5)*0.08;     // near-parallel & camera-facing (no edge-on streak)
+    grp.add(m); this._rays.push({m});
+  }
+  return grp;
+};
+R3.buildMist=function(bw,groundY){
+  const S=128,c=document.createElement("canvas"); c.width=c.height=S; const g=c.getContext("2d");
+  for(let i=0;i<46;i++){ const x=Math.random()*S,y=Math.random()*S,r=12+Math.random()*44,a=0.02+Math.random()*0.05;
+    const gr=g.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,"rgba(206,214,208,"+a+")"); gr.addColorStop(1,"rgba(206,214,208,0)");
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
+  const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+  const grp=new THREE.Group(); this._mist=[];
+  for(let i=0;i<2;i++){ const m=new THREE.Mesh(new THREE.PlaneGeometry(bw*16,bw*8),
+    new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0.2,depthWrite:false}));
+    m.rotation.x=-Math.PI/2; m.position.set(0,groundY+bw*(0.5+i*0.4),-bw*3.0); grp.add(m);   // low + well behind the board
+    this._mist.push({m,off:Math.random()*6.28,base:m.position.x}); }
+  return grp;
+};
+R3.buildExtraPlants=function(bw,groundY){
+  const grp=new THREE.Group();
+  // grass tufts (instanced) scattered on the floor, kept clear of the board/table
+  const clearR=bw/2+this.bowlGap+this.bowlR*2+bw*0.5, blade=new THREE.PlaneGeometry(0.06,1); blade.translate(0,0.5,0);
+  const grass=new THREE.InstancedMesh(blade,new THREE.MeshStandardMaterial({color:0x5c7a36,roughness:0.7,side:THREE.DoubleSide,envMapIntensity:0.5}),200);
+  const d=new THREE.Object3D(), col=new THREE.Color(); let gi=0;
+  for(let i=0;i<200;i++){ const ang=Math.random()*6.28, rr=clearR*0.9+Math.random()*bw*4.5, x=Math.cos(ang)*rr, z=Math.sin(ang)*rr-bw*0.3;
+    if(Math.abs(x)<clearR&&Math.abs(z)<clearR) continue;
+    const h=bw*(0.12+Math.random()*0.2); d.position.set(x,groundY,z); d.rotation.set(0,Math.random()*6.28,(Math.random()-0.5)*0.25); d.scale.set(1,h,1);
+    d.updateMatrix(); grass.setMatrixAt(gi,d.matrix); const t=0.7+Math.random()*0.4; col.setRGB(t*0.5,t*0.7,t*0.32); grass.setColorAt(gi,col); gi++; }
+  grass.count=gi; if(grass.instanceColor) grass.instanceColor.needsUpdate=true; grass.castShadow=false; grp.add(grass);
+  // a few ferns clustered by the pond (top-right)
+  const P=this._pond; if(P){ for(let i=0;i<6;i++){ const a=Math.random()*6.28, rr=P.R*(1.05+Math.random()*0.35), s=bw*(0.35+Math.random()*0.35);
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(s,s),new THREE.MeshStandardMaterial({map:this.foliageTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.6,envMapIntensity:0.6}));
+    f.position.set(P.cx+Math.cos(a)*rr,groundY+s*0.4,P.cz+Math.sin(a)*rr); f.rotation.set((Math.random()-0.5)*0.3,Math.random()*6.28,(Math.random()-0.5)*0.2); grp.add(f); } }
+  return grp;
+};
+R3.buildCrane=function(bw,groundY){
+  const P=this._pond||{cx:bw*2.6,cz:-bw*2.3,R:bw*1.2}, s=bw*0.32, C=new THREE.Group();
+  const white=new THREE.MeshStandardMaterial({color:0xf4f1ea,roughness:0.55});
+  const black=new THREE.MeshStandardMaterial({color:0x15110d,roughness:0.7});
+  const red=new THREE.MeshStandardMaterial({color:0xc0301c,roughness:0.6});
+  const body=new THREE.Mesh(new THREE.SphereGeometry(s*0.5,12,10),white); body.scale.set(1,0.8,1.5); body.position.y=s*1.4; C.add(body);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(s*0.07,s*0.1,s*1.4,8),white); neck.position.set(0,s*2.2,s*0.32); neck.rotation.x=-0.3; C.add(neck);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(s*0.14,8,8),white); head.position.set(0,s*2.9,s*0.55); C.add(head);
+  const crown=new THREE.Mesh(new THREE.SphereGeometry(s*0.08,8,8),red); crown.position.set(0,s*3.0,s*0.55); C.add(crown);
+  const beak=new THREE.Mesh(new THREE.ConeGeometry(s*0.04,s*0.3,6),black); beak.rotation.x=Math.PI/2; beak.position.set(0,s*2.9,s*0.82); C.add(beak);
+  const tail=new THREE.Mesh(new THREE.ConeGeometry(s*0.2,s*0.6,6),black); tail.rotation.x=-Math.PI/2.2; tail.position.set(0,s*1.4,-s*0.7); C.add(tail);
+  for(const lx of [-s*0.15,s*0.15]){ const leg=new THREE.Mesh(new THREE.CylinderGeometry(s*0.03,s*0.03,s*1.4,6),black); leg.position.set(lx,s*0.7,0); C.add(leg); }
+  C.position.set(P.cx+P.R*0.5,groundY,P.cz-P.R*0.45); C.rotation.y=2.2; return C;   // far side of the pond, facing the water
+};
+R3.updateScenery=function(dt,now){
+  // gentle collective shimmer on the (shared) god-ray material so the shafts breathe
+  const rt=(this._rayTarget!==undefined?this._rayTarget:0.1);
+  if(this.rayMat) this.rayMat.opacity=rt*(0.82+0.18*Math.sin(now*0.0005));
+  if(this.poolMat) this.poolMat.opacity=rt*0.85*(0.8+0.2*Math.sin(now*0.0006+1.5));   // light pools landing on the board
+  if(this._mist) for(const m of this._mist) m.m.position.x=m.base+Math.sin(now*0.0001+m.off)*this.bw*1.5;
+};
+/* day/night cycle — one full day every 3 minutes; recolours sky, fog & all lights, arcs the sun,
+   brightens the lanterns at night and the god-rays at dawn/dusk. */
+R3.updateDayNight=function(now){
+  if(!this.scene||!this.key||!this.hemi) return;
+  const t=((now+40000)%180000)/180000;     // +40s offset so a fresh load opens in bright morning, not predawn
+  const KF=[
+    // DAY: low ambient (dark scene) + strong sun + blazing rays = dramatic contrast. NIGHT: strong cool moonlight.
+    {t:0.00,sky:0x222f4e,kC:0xb6ccf2,kI:1.35,hS:0x3a4b6e,hG:0x141a28,hI:0.85,fC:0x6076a8,fI:0.32,sx:-0.7,sy:0.55,fog:1.1,ray:0.95,rcol:0xc2d6ff,lan:1.0},
+    {t:0.16,sky:0xa07f6c,kC:0xffc684,kI:1.30,hS:0xa89084,hG:0x1e160e,hI:0.40,fC:0xffc488,fI:0.20,sx:-1.0,sy:0.28,fog:1.1,ray:1.00,rcol:0xffdca8,lan:0.5},
+    {t:0.34,sky:0x9fc0cf,kC:0xfff4e4,kI:2.05,hS:0xaec2cc,hG:0x221c12,hI:0.48,fC:0xfff0dc,fI:0.22,sx:-0.3,sy:0.95,fog:0.75,ray:1.00,rcol:0xfff4dc,lan:0.0},
+    {t:0.54,sky:0xb06a3a,kC:0xff9850,kI:1.35,hS:0xb88a5e,hG:0x20140c,hI:0.40,fC:0xffae6a,fI:0.20,sx:0.9,sy:0.26,fog:1.1,ray:1.05,rcol:0xffb070,lan:0.5},
+    {t:0.70,sky:0x1e2a4c,kC:0xb0c6f2,kI:1.35,hS:0x36476a,hG:0x121826,hI:0.85,fC:0x5e74a6,fI:0.32,sx:0.6,sy:0.55,fog:1.1,ray:0.95,rcol:0xbed2ff,lan:1.0},
+    {t:1.00,sky:0x222f4e,kC:0xb0c6f2,kI:1.35,hS:0x3a4b6e,hG:0x141a28,hI:0.85,fC:0x6076a8,fI:0.32,sx:-0.7,sy:0.55,fog:1.1,ray:0.95,rcol:0xc2d6ff,lan:1.0}
+  ];
+  let a=KF[0],b=KF[1];
+  for(let i=0;i<KF.length-1;i++){ if(t>=KF[i].t&&t<KF[i+1].t){ a=KF[i]; b=KF[i+1]; break; } }
+  const f=(t-a.t)/Math.max(1e-6,b.t-a.t), lp=(x,y)=>x+(y-x)*f, C=(c1,c2)=>new THREE.Color(c1).lerp(new THREE.Color(c2),f);
+  const sky=C(a.sky,b.sky); this.scene.background.copy(sky);
+  if(this.scene.fog){ this.scene.fog.color.copy(sky); this.scene.fog.density=(this._fogBase||0.012)*lp(a.fog,b.fog); }
+  this.key.color.copy(C(a.kC,b.kC)); this.key.intensity=lp(a.kI,b.kI);
+  this.hemi.color.copy(C(a.hS,b.hS)); this.hemi.groundColor.copy(C(a.hG,b.hG)); this.hemi.intensity=lp(a.hI,b.hI);
+  if(this.fill){ this.fill.color.copy(C(a.fC,b.fC)); this.fill.intensity=lp(a.fI,b.fI); }
+  const bw=this.bw||9; this.key.position.set(lp(a.sx,b.sx)*bw*1.5,Math.max(0.12,lp(a.sy,b.sy))*bw*1.9,-bw*0.5);
+  this._night=lp(a.lan,b.lan);                 // night factor → fireflies come out
+  // god-rays: warm sunbeams by day, cool silver moonbeams by night — bright & dramatic the whole cycle
+  this._rayTarget=0.26*lp(a.ray,b.ray);
+  if(this.rayMat) this.rayMat.color.copy(C(a.rcol,b.rcol));
+  if(this.poolMat && this.rayMat) this.poolMat.color.copy(this.rayMat.color);
 };
 R3.buildLeaves=function(bw,groundY){
   const N=120;
@@ -3436,24 +3927,27 @@ R3.init=function(){
   this.renderer=renderer;
   const scene=new THREE.Scene(); this.scene=scene;
   scene.environment=this.envFromGradient();
-  scene.background=this.makeSkyGradient();
-  scene.fog=new THREE.FogExp2(0xa7b5ab,0.045);              // misty haze; density retuned per board size
+  scene.background=new THREE.Color(0xbcd0d8);               // solid sky — recoloured by the day/night cycle
+  scene.fog=new THREE.FogExp2(0xbcd0d8,0.014);              // LIGHT haze; colour follows the sky, density per board size
 
   const cam=new THREE.PerspectiveCamera(38,1,0.1,400); this.camera=cam;
-  // cool, misty key light + a warm fill so the wood/stones keep a warm glow
-  scene.add(new THREE.HemisphereLight(0xc4d4d8,0x20241c,0.7));
-  const key=new THREE.DirectionalLight(0xeaf2f5,1.5); key.castShadow=true;
+  // lights are all stored so the day/night cycle can recolour & dim them every frame
+  this.hemi=new THREE.HemisphereLight(0xcdd6d2,0x281f15,0.7); scene.add(this.hemi);
+  const key=new THREE.DirectionalLight(0xffe9cf,1.5); key.castShadow=true;
   key.shadow.mapSize.set(2048,2048); key.shadow.bias=-0.0006; key.shadow.radius=6;
   this.key=key; scene.add(key); scene.add(key.target);
-  const fill=new THREE.DirectionalLight(0xffcaa0,0.5); fill.position.set(1.2,0.7,-0.3); scene.add(fill);
+  this.fill=new THREE.DirectionalLight(0xffd2a8,0.5); this.fill.position.set(1.2,0.7,-0.3); scene.add(this.fill);
 
   this.boardGroup=new THREE.Group(); scene.add(this.boardGroup);
   this.envGroup=new THREE.Group();   scene.add(this.envGroup);   // table + bowls + grove + ground
   this.stoneGroup=new THREE.Group(); scene.add(this.stoneGroup);
   this.stones=new Map();
   this.geoStone=new THREE.SphereGeometry(this.rad,44,30);
-  this.matBlack=new THREE.MeshPhysicalMaterial({color:0x0b0b0b,roughness:0.15,metalness:0,clearcoat:1.0,clearcoatRoughness:0.05,envMapIntensity:1.45});
-  this.matWhite=new THREE.MeshPhysicalMaterial({color:0xefe6d4,roughness:0.24,metalness:0,clearcoat:0.95,clearcoatRoughness:0.08,envMapIntensity:1.3,sheen:0.5,sheenColor:new THREE.Color(0xfff2dd)});
+  this.matBlack=new THREE.MeshPhysicalMaterial({color:0x0c0c0e,roughness:0.10,metalness:0,clearcoat:1.0,clearcoatRoughness:0.03,envMapIntensity:2.1,reflectivity:0.7});  // glossy slate — strong spec highlight makes it read on the wood
+  this.matWhite=new THREE.MeshPhysicalMaterial({color:0xf2ebdc,roughness:0.18,metalness:0,clearcoat:1.0,clearcoatRoughness:0.05,envMapIntensity:1.7,sheen:0.6,sheenColor:new THREE.Color(0xfff2dd)});  // glossy clamshell
+  // translucent "marked dead" variants, shown during the end-of-game scoring phase
+  this.matBlackDead=this.matBlack.clone(); this.matBlackDead.transparent=true; this.matBlackDead.opacity=0.26; this.matBlackDead.clearcoat=0.3;
+  this.matWhiteDead=this.matWhite.clone(); this.matWhiteDead.transparent=true; this.matWhiteDead.opacity=0.26; this.matWhiteDead.clearcoat=0.3;
   // hover ghost
   this.ghostMat=new THREE.MeshPhysicalMaterial({color:0xffffff,transparent:true,opacity:0.42,roughness:0.3,clearcoat:0.5});
   this.ghost=new THREE.Mesh(this.geoStone,this.ghostMat); this.ghost.scale.set(1,0.62,1); this.ghost.visible=false; scene.add(this.ghost);
@@ -3471,8 +3965,8 @@ R3.init=function(){
   this.marker=new THREE.Mesh(new THREE.TorusGeometry(this.rad*0.62,this.rad*0.10,12,40),this.markMat);
   this.marker.rotation.x=-Math.PI/2; this.marker.visible=false; this.marker.renderOrder=5; scene.add(this.marker);
   // surface plane (catches the grid texture + shadows)
-  this.surfMat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:0.17,metalness:0,clearcoat:1.0,clearcoatRoughness:0.05,envMapIntensity:1.5,
-    emissive:new THREE.Color(0xffb060), emissiveIntensity:0.9});
+  this.surfMat=new THREE.MeshPhysicalMaterial({color:0xffffff,roughness:0.18,metalness:0,clearcoat:0.85,clearcoatRoughness:0.06,envMapIntensity:0.95,
+    emissive:new THREE.Color(0xffb060), emissiveIntensity:0.0});   // no line-glow: thuya goban has plain black inked lines lit by the scene
   this.surf=new THREE.Mesh(new THREE.PlaneGeometry(1,1),this.surfMat);
   this.surf.rotation.x=-Math.PI/2; this.surf.receiveShadow=true; scene.add(this.surf);
 
@@ -3491,7 +3985,7 @@ R3.init=function(){
   let prev=performance.now();
   const loop=(now)=>{ requestAnimationFrame(loop);
     const dt=Math.min((now-prev)/1000,0.05); prev=now;
-    this.updateLeaves(dt,now); this.swayFoliage(now);
+    this.updateLeaves(dt,now); this.swayFoliage(now); this.updateFireflies(dt,now); this.updateScenery(dt,now); this.updateDayNight(now);
     // ease the camera toward its target tilt (driven by scroll wheel OR the View button)
     if(this.tiltTarget!==undefined && Math.abs(this.tiltTarget-(this.camTilt||0))>0.0008){
       this.camTilt=(this.camTilt||0)+(this.tiltTarget-(this.camTilt||0))*Math.min(1,dt*7);
@@ -3535,11 +4029,16 @@ R3.build=function(n){               // (re)build the board + whole scene for a g
   const slab=new THREE.Mesh(new THREE.BoxGeometry(bw,this.thick,bw),sideMat);
   slab.position.y=-this.thick/2-0.01; slab.castShadow=true; slab.receiveShadow=true;
   this.boardGroup.add(slab);
-  // playing surface
+  // playing surface — colour + derived bump (relief) + roughness (chatoyance) so it catches light like real wood
   if(this.surfMat.map) this.surfMat.map.dispose();
-  if(this.surfMat.emissiveMap) this.surfMat.emissiveMap.dispose();
-  this.surfMat.map=this.makeBoardTexture(n);
-  this.surfMat.emissiveMap=this.makeBoardEmissive(n); this.surfMat.needsUpdate=true;
+  if(this.surfMat.bumpMap) this.surfMat.bumpMap.dispose();
+  if(this.surfMat.roughnessMap) this.surfMat.roughnessMap.dispose();
+  const bm=this.makeBoardTexture(n);
+  this.surfMat.map=bm.map; this.surfMat.bumpMap=bm.bump; this.surfMat.bumpScale=0.4;
+  this.surfMat.roughnessMap=bm.rough; this.surfMat.roughness=1.0;     // map drives the 0.26–0.64 gloss band
+  this.surfMat.emissiveIntensity=0.0; this.surfMat.emissiveMap=null;  // no line glow on real wood
+  this.surfMat.needsUpdate=true;
+  this.loadRealWood(n);                                               // swap in wood.jpg if the user provides one
   this.surf.scale.set(bw,bw,1); this.surf.position.y=0;
   // environment: table, ground, corner go bowls, bamboo grove
   this.envGroup.add(this.makeTable(bw));
@@ -3553,8 +4052,13 @@ R3.build=function(n){               // (re)build the board + whole scene for a g
   this.envGroup.add(this.makeBowl( off,-off,false));    // white-stone bowls on the other
   this.envGroup.add(this.makeBowl(-off, off,false));
   this.envGroup.add(this.buildGrove(bw,groundY));
+  this._lanterns=[]; this._pond=null;                   // (pond & lanterns removed — night is lit by moonlight)
   this.envGroup.add(this.buildLeaves(bw,groundY));
-  this.scene.fog.density=0.38/bw;                        // grove dissolves into haze, board stays clear
+  this.envGroup.add(this.buildFireflies(bw,groundY));   // night-only fireflies
+  this.envGroup.add(this.buildGodRays(bw,groundY));     // soft sun/moon shafts streaming over the whole scene
+  this.envGroup.add(this.buildMist(bw,groundY));        // faint drifting ground mist
+  this.envGroup.add(this.buildExtraPlants(bw,groundY)); // grass tufts
+  this._fogBase=0.085/bw; this.scene.fog.density=this._fogBase;   // LIGHT haze (day/night cycle modulates it)
   // camera framing — interpolate between a tilted 3/4 view and a top-down bird's-eye
   this.camLook=new THREE.Vector3(0,0.0,-bw*0.1);
   this.camOff3D  =new THREE.Vector3(0,bw*0.9, bw*1.15).sub(this.camLook);  // cinematic angle
@@ -3596,23 +4100,29 @@ R3.frameCamera=function(){          // fit the whole board into the frustum at A
   // 4) keep fog-over-the-board constant: FogExp2 haze depends on density*distance,
   //    so scale density inversely with how far we pulled back (portrait pulls back
   //    much farther than landscape, which otherwise looked too foggy).
-  if(this.scene && this.scene.fog) this.scene.fog.density = 0.42 / cam.position.distanceTo(L);
+  this._fogBase = 0.14 / cam.position.distanceTo(L);   // base haze; day/night cycle tints + scales it each frame
 };
 
 R3.cellToWorld=function(i,j){ return [ -this.bw/2+this.padW+i, -this.bw/2+this.padW+j ]; };
 
+R3.setDead=function(set){ this.dead=set; if(this.ready) this.sync(); };   // dead set changed → re-sync materials
 R3.sync=function(){               // mirror board[][] into 3D stone meshes
   if(!this.ready) return;
   if(!board || board.length!==this.n) return;     // board/size mid-rebuild — skip this frame
+  const dead=this.dead;
   const want=new Set();
-  for(let y=0;y<this.n;y++)for(let x=0;x<this.n;x++){ const c=board[y][x]; if(c){ want.add(x+","+y+","+c); } }
+  // key includes a "d" suffix for dead-marked stones so a toggle swaps the mesh material
+  for(let y=0;y<this.n;y++)for(let x=0;x<this.n;x++){ const c=board[y][x];
+    if(c){ want.add(x+","+y+","+c+(dead&&dead.has(x+","+y)?"d":"")); } }
   // remove stale
   for(const [k,m] of this.stones){ if(!want.has(k)){ this.stoneGroup.remove(m); this.stones.delete(k); } }
   // add new
   for(let y=0;y<this.n;y++)for(let x=0;x<this.n;x++){ const c=board[y][x]; if(!c) continue;
-    const k=x+","+y+","+c; if(this.stones.has(k)) continue;
-    const m=new THREE.Mesh(this.geoStone, c===1?this.matBlack:this.matWhite);
-    m.scale.set(1,0.62,1); m.castShadow=true; m.receiveShadow=false;
+    const dk=dead&&dead.has(x+","+y);
+    const k=x+","+y+","+c+(dk?"d":""); if(this.stones.has(k)) continue;
+    const mat=c===1?(dk?this.matBlackDead:this.matBlack):(dk?this.matWhiteDead:this.matWhite);
+    const m=new THREE.Mesh(this.geoStone, mat);
+    m.scale.set(1,0.62,1); m.castShadow=!dk; m.receiveShadow=false;
     const [wx,wz]=this.cellToWorld(x,y); m.position.set(wx,this.rad*0.62-0.02,wz);
     this.stoneGroup.add(m); this.stones.set(k,m); }
   // glowing last-move marker
@@ -3641,6 +4151,7 @@ R3.pick=function(e){              // pointer → board [i,j] or null
 };
 R3.onMove=function(e){
   if(!document.body.classList.contains("playing")){ this.ghost.visible=false; return; }   // only react in-game
+  if(SCORING){ this.ghost.visible=false; return; }   // scoring phase — no placement ghost
   if(this.pending) return;   // a stone is previewed and awaiting confirmation — keep it put
   const p=this.pick(e);
   if(p && !gameOver && board[p[1]][p[0]]===0 && !(MODE==="cpu"&&turn!==HUMAN)){
@@ -3670,6 +4181,7 @@ R3.commitPending=function(){
 };
 R3.onDown=function(e){
   if(!document.body.classList.contains("playing")) return;                                 // setup card is up — ignore board taps
+  if(SCORING){ const sp=this.pick(e); if(sp) toggleDeadAt(sp[0],sp[1]); return; }           // scoring phase — tap toggles dead groups
   const p=this.pick(e); if(!p) return;
   if(gameOver || board[p[1]][p[0]]!==0 || (MODE==="cpu"&&turn!==HUMAN)) return;             // occupied / not your turn
   if(!CONFIRM_MOVE){ this.ghost.visible=false; playAtCell(p[0],p[1]); return; }              // direct placement
